@@ -84,8 +84,10 @@ bool ODBSDClient::start(IOService *provider)
 {
   DEBUG_FUNCTION();
 
-  if (!this->getDeviceBase() || !provider) {
-    IOLog("%s: No device base or bad provider.", this->getName());
+  const char *device_base = this->getDeviceBase();
+
+  if (!device_base || strlen(device_base) > 255 || !provider) {
+    IOLog("%s: Bad device base or bad provider.", this->getName());
     return false;
   }
 
@@ -106,21 +108,27 @@ bool ODBSDClient::start(IOService *provider)
 
   char name[256] = ARRAY256(0);
 
-  snprintf(name, sizeof(name), "%s%x", this->getDeviceBase(), this->minor);
+  if (this->minor == 0)
+    strncpy(name, device_base, sizeof(name) - 1);
+  else
+    snprintf(name, sizeof(name) - 1, "%s%x", device_base, this->minor + 1);
+
   clients[this->minor] = this;
   clients[this->minor]->node = devfs_make_node(makedev(major, this->minor),
 					       DEVFS_CHAR, UID_ROOT, GID_WHEEL, 
 					       UMASK, name, this->minor);
   if (!clients[this->minor]->node) return false;
   
+#if 0
   /* try to create a link in /dev/<base> */
-  devfs_link(clients[this->minor]->node, (char *)this->getDeviceBase());
+  devfs_link(clients[this->minor]->node, (char *)device_base);
+#endif
 
   /* set properties */
   this->setProperty(kODBSDClientMajorNumberKey, major, sizeof(major)*8);
   this->setProperty(kODBSDClientMinorNumberKey, minor, sizeof(minor)*8);
   this->setProperty(kODBSDClientDeviceKey, name);
-  this->setProperty(kODBSDClientBaseNameKey, this->getDeviceBase());
+  this->setProperty(kODBSDClientBaseNameKey, device_base);
 
   return true;
 }

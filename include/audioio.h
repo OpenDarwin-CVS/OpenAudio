@@ -30,35 +30,86 @@
 #ifndef	_AUDIO_IOCTL_H_
 #define	_AUDIO_IOCTL_H_
 
+#ifndef KERNEL
+#include <inttypes.h>
+#include <stdbool.h>
+#endif
+
+#include <sys/types.h>
 #include <sys/ioccom.h>
 #include <IOKit/audio/IOAudioTypes.h>
 
-/* general audio ioctl's. */
+/* TYPES */
 
-#ifdef UNIMPLEMENTED
+typedef struct audio_interface {
+  bool internal : 1, external : 1, spdif : 1;
+} audio_interface_t;
+
+typedef struct audio_volume {
+  audio_interface_t ifaces;
+  unsigned short value;
+} audio_volume_t;
+
+/* GENERAL AUDIO */
+
 /* perform an audible beep */
+#ifdef UNIMPLEMENTED
 #define AUDIOBEEP _IO('A', 1)
+#endif
 
 /* flush audio device */
+#ifdef UNIMPLEMENTED
 #define AUDIOFLUSH _IO('A', 2)
+#endif
 
 /* get latency in nanoseconds */
-#define AUDIOLATENCY _IOR('A', 3, long long)
+#ifdef UNIMPLEMENTED
+#define AUDIOLATENCY _IOR('A', 3, unsigned)
+#endif
 
-/* audio format ioctl's. */
+/* AUDIO FORMAT */
 
 /* get output format of the audio device */
 #define AUDIOGETOFMT _IOR('A', 11, IOAudioStreamFormat)
 
 /* set output format of the audio device */
-#define AUDIOSETOFMT _IOW('A', 12, IOAudioStreamFormat)
+#define AUDIOSETOFMT _IOW('A', 11, IOAudioStreamFormat)
 
 /* get input format of the audio device */
-#define AUDIOGETIFMT _IOR('A', 13, IOAudioStreamFormat)
+#ifdef UNIMPLEMENTED
+#define AUDIOGETIFMT _IOR('A', 12, IOAudioStreamFormat)
+#endif
 
 /* set input format of the audio device */
-#define AUDIOSETIFMT _IOW('A', 14, IOAudioStreamFormat)
+#ifdef UNIMPLEMENTED
+#define AUDIOSETIFMT _IOW('A', 12, IOAudioStreamFormat)
+#endif
 
-#endif /* UNIMPLEMENTED */
+/* VOLUME CONTROL */
+
+/* get available output interfaces */
+#ifdef UNIMPLEMENTED
+#define AUDIOGETIFACES _IOR('A', 21, audio_interface_t)
+#endif
+
+/* get volume */
+#ifdef UNIMPLEMENTED
+#define AUDIOGETVOL _IORW('A', 22, audio_volume_t)
+#endif
+
+/* set volume */
+#ifdef UNIMPLEMENTED
+#define AUDIOSETVOL _IOR('A', 22, audio_volume_t)
+#endif
+
+/* get muted */
+#ifdef UNIMPLEMENTED
+#define AUDIOGETMUTE _IOW('A', 23, audio_interface_t)
+#endif
+
+/* set muted */
+#ifdef UNIMPLEMENTED
+#define AUDIOSETMUTE _IOR('A', 23, audio_interface_t)
+#endif
 
 #endif /* !_AUDIO_IOCTL_H_ */

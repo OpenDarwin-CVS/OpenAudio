@@ -75,6 +75,7 @@ class ODAudioBSDClient : public ODBSDClient
   virtual int open(int flags, int devtype, struct proc *pp);
   virtual int close(int flags, int mode, struct proc *pp);
   virtual int write(struct uio *uio, int ioflag);
+  virtual int ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p);
 
   virtual bool start(IOService *provider);
 

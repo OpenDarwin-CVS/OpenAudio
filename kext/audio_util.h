@@ -35,6 +35,12 @@
 
 #define UMASK 0666
 
+#if 0
+#define VERBOSE_DEBUG(...) DEBUG(__VA_ARGS__)
+#else
+#define VERBOSE_DEBUG(...) (void)0
+#endif
+
 #ifndef NDEBUG
 #define MACH_ASSERT
 #define DEBUG(...) \

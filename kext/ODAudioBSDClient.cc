@@ -32,6 +32,8 @@
 
 #include "audio_util.h"
 
+#include "audio/audio_ioctl.h"
+
 #include <IOKit/audio/IOAudioEngine.h>
 #include <IOKit/audio/IOAudioDefines.h>
 #include <IOKit/audio/IOAudioStream.h>
@@ -263,13 +265,14 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
       int frame_diff = 
 	(endpos.fLoopCount * engine->numSampleFramesPerBuffer +
 	 endpos.fSampleFrame) - 
-	(engine->getStatus()->fCurrentLoopCount * engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
+	(engine->getStatus()->fCurrentLoopCount * 
+	 engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
 
       if (frame_diff <= 0) {
 	/* The end position has been overtaken by the current frame.
 	 * This means we're behind and shouldn't wait at all */
-	DEBUG("RACE CONDITION DETECTED: %u %u off\n",
-	      nwrites, -frame_diff);
+	VERBOSE_DEBUG("RACE CONDITION DETECTED: %u %u off\n",
+		      nwrites, -frame_diff);
 	delay = 0;
       } else if (frame_diff < LATENCY_FRAMES) {
 	/* The end position is less than LATENCY_FRAMES ahead of the
@@ -277,9 +280,9 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 	 * avoid skipping. Decrease the delay to ensure the latency. */
 	unsigned correction = 
 	  bytesToNanos(
-framesToBytes(LATENCY_FRAMES - frame_diff));
-	DEBUG("RACE CONDITION EMMINENT: %u %u off %u corrected\n",
-	      nwrites, (unsigned)frame_diff, correction);
+		       framesToBytes(LATENCY_FRAMES - frame_diff));
+	VERBOSE_DEBUG("RACE CONDITION EMMINENT: %u %u off %u corrected\n",
+		      nwrites, (unsigned)frame_diff, correction);
 	delay -= (delay > correction) ? correction : delay;
       }
 
@@ -287,11 +290,11 @@ framesToBytes(LATENCY_FRAMES - frame_diff));
       IOSleep(delay / 1000000);
       IODelay((delay / 1000) % 1000);
 #else
-      DEBUG("%u \n", (unsigned)(tick/delay));
+      VERBOSE_DEBUG("%u \n", (unsigned)(tick/delay));
       //tsleep(this, 0, "audio", (t1 - t2) / 1000);
 #endif
     } else {
-      DEBUG("NOT SLEEPING\n");
+      VERBOSE_DEBUG("NOT SLEEPING\n");
     }
   }
 
@@ -354,7 +357,7 @@ framesToBytes(LATENCY_FRAMES - frame_diff));
     absolutetime_to_nanoseconds(diff, &d);
 
     if (delay < d)
-      DEBUG("%u: now > next_call: c=%llu d=%llu\n", nwrites, d, delay);
+      VERBOSE_DEBUG("%u: now > next_call: c=%llu d=%llu\n", nwrites, d, delay);
 
 #if 0
     correction = (delay >= d) ? -d : -delay;
@@ -374,7 +377,8 @@ framesToBytes(LATENCY_FRAMES - frame_diff));
     correction = d;
 
     if (delay < d)
-      DEBUG("%u: now < next_call: delay=%llu d=%llu\n", nwrites, delay, d);
+      VERBOSE_DEBUG("%u: now < next_call: delay=%llu d=%llu\n",
+		    nwrites, delay, d);
 
     break;
   }
@@ -382,8 +386,9 @@ framesToBytes(LATENCY_FRAMES - frame_diff));
     /* now == next_call - the two times are equal. This ONLY happens
      * when the audio engine was just started, so we don't wait at
      * all.  */
-    DEBUG("%u: now = next_call: d=%llu %llu == %llu\n", nwrites, delay,
-	  AbsoluteTime_to_scalar(&now), AbsoluteTime_to_scalar(&next_call));
+    VERBOSE_DEBUG("%u: now = next_call: d=%llu %llu == %llu\n", nwrites, delay,
+		  AbsoluteTime_to_scalar(&now),
+		  AbsoluteTime_to_scalar(&next_call));
     correction = -delay;
     break;
   default:
@@ -401,6 +406,38 @@ framesToBytes(LATENCY_FRAMES - frame_diff));
   if (engine->getState() != kIOAudioEngineRunning) {
     engine->startAudioEngine();
     engine->performFlush();
+  }
+
+  return r;
+}
+
+int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
+{
+  DEBUG_FUNCTION();
+
+  int r = kIOReturnSuccess;
+
+  switch (cmd) {
+  case AUDIOGETOFMT: {
+    const IOAudioStreamFormat *f = outputstream->getFormat();
+    DEBUG("AUDIOGETOFMT\n");
+    if (f)
+      bcopy(f, data, sizeof(IOAudioStreamFormat));
+    else
+      r = EINVAL;
+    break;
+  }
+
+  case AUDIOSETOFMT:
+    DEBUG("AUDIOSETOFMT\n");
+    if (f)
+      r = outputstream->setFormat((IOAudioStreamFormat *)data) ? EINVAL : r;
+    else
+      r = EINVAL;
+
+  default:
+    DEBUG("!?\n");
+    r = ENOTTY;
   }
 
   return r;
