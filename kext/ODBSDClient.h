@@ -1,4 +1,8 @@
-/*
+/* -*- c++ -*-
+ *
+ * OpenDarwin IOKit BSD Client
+ * An abstract IOService with an entry in /dev
+ *
  * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
  * All rights reserved.
  * 
@@ -25,28 +29,45 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _DS_MODULE
-#define _DS_MODULE
+#ifndef _ODBSDCLIENT_H_
+#define _ODBSDCLIENT_H_
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
-#include <mach/vm_types.h>
-#include <mach/kmod.h>
+#include <sys/conf.h>
 
-#define DS_MAJOR  17
+#include <IOKit/IOService.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class ODBSDClient : public IOService
+{
+  OSDeclareAbstractStructors(ODBSDClient);
 
-kern_return_t ds_start(kmod_info_t * ki, void * d);
-kern_return_t ds_stop(kmod_info_t * ki, void * d);
+private:
+  
+  int minor;
+  void *node;
 
-int ds_open(dev_t dev, int flags, int devtype, struct proc *pp);
-int ds_close(dev_t dev, int flags, int mode, struct proc *pp);
-int ds_write(dev_t dev, struct uio *uio, int ioflag);
+protected:
 
-#ifdef __cplusplus
-}
-#endif
+  /* this return the base name of the /dev/<name>N entries */
+  virtual const char *getDeviceBase() const = 0;
 
-#endif
+public:
+
+  /* the device operations to be implemented by the subclass */
+  virtual int open(int flags, int devtype, struct proc *pp);
+  virtual int close(int flags, int mode, struct proc *pp);
+  virtual int read(struct uio *uio, int ioflag);
+  virtual int write(struct uio *uio, int ioflag);
+  virtual int ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p);
+  virtual int select(int which, void * wql, struct proc *p);
+  virtual int mmap();
+  virtual int getc();
+  virtual int putc(char c);
+
+  virtual bool start(IOService *provider);
+  virtual void stop(IOService *provider);
+
+};
+
+#endif /* _ODAUDIOBSDCLIENT_H_ */

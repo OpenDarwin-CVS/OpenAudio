@@ -1,7 +1,6 @@
-/* -*- c++ -*-
- *
- * OpenDarwin Audio BSD Client
- * An IOService bridging an IOAudioEngine with an entry in /dev
+/*
+ * OpenDarwin IOKit BSD Client
+ * An abstract IOService with an entry in /dev
  *
  * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
  * All rights reserved.
@@ -29,55 +28,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ODAUDIOBSDCLIENT_H_
-#define _ODAUDIOBSDCLIENT_H_
-
-#include "ODBSDClient.h"
-
-#include <IOKit/audio/IOAudioTypes.h>
-#include <IOKit/audio/IOAudioEngine.h>
-#include <IOKit/audio/IOAudioStream.h>
-
-#define kODAudioBSDClientTypeKey "ODAudioBSDClientType"
-
-class ODAudioBSDClient : public ODBSDClient
-{
-  OSDeclareAbstractStructors(ODAudioBSDClient);
-
- private:
-  static int ninitialised;
-  virtual const char *statusString();
-
-  virtual uint64_t bytesToNanos(uint64_t bytes);
-  virtual uint64_t bytesToFrames(uint64_t bytes);
-  virtual uint64_t nanosToBytes(uint64_t nanos);
-  virtual uint64_t framesToBytes(uint64_t frames);
-
-  virtual AbsoluteTime getTime();
-
- protected:
-
-  /* STATE-RELATED FIELDS */
-
-  bool is_open;
-  UInt32 loopcount;
-  AbsoluteTime next_call;
-
-  /* IOAUDIOFAMILY-RELATED FIELDS */
-
-  IOAudioEngine *engine;
-  IOAudioStream *outputstream;
-
-  virtual const char *getDeviceBase() const;
-
- public:
-
-  virtual int open(int flags, int devtype, struct proc *pp);
-  virtual int close(int flags, int mode, struct proc *pp);
-  virtual int write(struct uio *uio, int ioflag);
-
-  virtual bool start(IOService *provider);
-
-};
-
-#endif
+#define kODBSDClientMajorNumberKey "ODBSDClientMajorNumber"
+#define kODBSDClientMinorNumberKey "ODBSDClientMinorNumber"
+#define kODBSDClientDeviceKey "ODBSDClientDevice"
+#define kODBSDClientBaseNameKey "ODBSDClientBaseName"

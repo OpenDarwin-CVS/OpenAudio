@@ -31,7 +31,7 @@
 /* HACK: workaround a typo in a kernel header */
 #define devfs_link devfs_make_link
 
-#define UMASK 0660
+#define UMASK 0666
 
 #if 0
 #define DEBUG(...) \
@@ -41,6 +41,9 @@
 #endif
 
 #if 0
+#define DEBUG_FUNCTION()			\
+  DEBUG_WAIT("-> %s\n", __PRETTY_FUNCTION__);
+#elif 1
 #define DEBUG_FUNCTION()			\
   DEBUG("-> %s\n", __PRETTY_FUNCTION__);
 #else
@@ -52,3 +55,15 @@
     IOLog(__VA_ARGS__);				\
     IOSleep(500);				\
   } while (0);
+
+#define EXPAND4(...) __VA_ARGS__ __VA_ARGS__ __VA_ARGS__ __VA_ARGS__
+
+#define EXPAND16(...) EXPAND4(__VA_ARGS__) EXPAND4(__VA_ARGS__) \
+       EXPAND4(__VA_ARGS__) EXPAND4(__VA_ARGS__)
+
+#define EXPAND256(...) EXPAND16(__VA_ARGS__) EXPAND16(__VA_ARGS__) \
+       EXPAND16(__VA_ARGS__) EXPAND16(__VA_ARGS__)
+
+#define ARRAY4(...) { EXPAND4(__VA_ARGS__,) }
+#define ARRAY16(...) { EXPAND16(__VA_ARGS__,) }
+#define ARRAY256(...) { EXPAND256(__VA_ARGS__,) }

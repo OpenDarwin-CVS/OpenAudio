@@ -2,8 +2,6 @@
 
 include config.mak
 
-.SUFFIXES: .plist .strings
-
 .PHONY: .depend clean dist all load unload reload
 
 .c.o:
@@ -12,15 +10,19 @@ include config.mak
 .cc.o:
 	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
-.strings.plist:
-	$(STR2PLIST) $< $@
+all: $(OBJS)
 
-all: $(PRODUCT)
-
-dist: $(PRODUCT).kext/Contents/MacOS/$(PRODUCT)
+dist: all
+	$(RM) $(PRODUCT).kext
+	$(MKDIR) $(PRODUCT).kext/Contents/MacOS
+	$(MKDIR) $(PRODUCT).kext/Contents/Resources
+	chown -R root:wheel $(PRODUCT).kext
+	chmod -R 755 $(PRODUCT).kext
+	$(CC) $(OBJS) $(LDFLAGS) -o $(PRODUCT).kext/Contents/MacOS/$(PRODUCT)
+	$(CP) Info.plist $(PRODUCT).kext/Contents
 
 load: dist
-	kextload -t $(PRODUCT).kext
+	kextload -t -s $(PRODUCT).kext/Contents/Resources $(PRODUCT).kext
 
 unload: dist
 	kextunload $(PRODUCT).kext
@@ -28,22 +30,7 @@ unload: dist
 reload: unload load
 
 clean:
-	$(RM) $(OBJS) $(PRODUCT) $(PRODUCT).plist $(PRODUCT).kext
-	$(RM) $(STR2PLIST) .depend
-
-$(STR2PLIST): $(STR2PLIST).c
-	$(CC) -framework CoreFoundation $? -o $@
-
-$(PRODUCT): $(OBJS)
-	$(CC) $(OBJS) $(LDFLAGS) -o $@
-
-$(PRODUCT).kext/Contents/MacOS/$(PRODUCT): \
-		$(STR2PLIST) $(PRODUCT) $(PRODUCT).plist
-	$(MKDIR) $(PRODUCT).kext/Contents/MacOS
-	$(MV) $(PRODUCT) $(PRODUCT).kext/Contents/MacOS/$(PRODUCT)
-	$(MV) $(PRODUCT).plist $(PRODUCT).kext/Contents/Info.plist
-	chown -R root:wheel $(PRODUCT).kext
-	chmod -R 644 $(PRODUCT).kext
+	$(RM) $(OBJS) $(PRODUCT) $(PRODUCT).plist $(PRODUCT).kext .depend
 
 .depend:
 	gcc -MM $(CPPFLAGS) $(SRCS) > .depend

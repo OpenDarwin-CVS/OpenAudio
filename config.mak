@@ -1,7 +1,8 @@
+
 # -*- Makefile -*-
 
-PRODUCT=DarwinSound
-OBJS=ds_module.o ds_init.o ODAudioBSDClient.o
+PRODUCT=OpenAudioExtensions
+OBJS=ds_init.o ODBSDClient.o ODAudioBSDClient.o
 
 MKDIR=mkdir -p
 STR2PLIST=util/str2plist
@@ -17,7 +18,7 @@ OSMINOR=$(shell $(SYSCTL) -n kern.osrelease | cut -d. -f2)
 
 ARCHFLAGS=
 
-CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers \
+CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers -I./include \
 	-I/System/Library/Frameworks/Kernel.framework/Headers/bsd \
 	-DKERNEL -DKERNEL_PRIVATE -Wall -W -Werror -Wno-unused-parameter \
 	-DDARWIN_MAJOR=$(OSMAJOR) -DDARWIN_MINOR=$(OSMINOR)

@@ -1,4 +1,7 @@
 /*
+ * Small utility for converting OpenStep property lists to XML
+ * Deprecated.
+ *
  * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
  * All rights reserved.
  * 
@@ -92,18 +95,34 @@ CFPropertyListRef CreateMyPropertyListFromFile(const char *url) {
 
   return propertyList;
 }
+
+#define ENTRY CFSTR("IOKitPersonalities")
 	
 int main (int argc, const char **argv) {
+
   if (argc == 3) {
     CFPropertyListRef propertyList =
       CreateMyPropertyListFromFile(argv[1]);
-    
-    if (!propertyList) {
+    CFMutableDictionaryRef dict =
+      CFDictionaryCreateMutableCopy(kCFAllocatorDefault, 0, propertyList);
+
+    if (!propertyList || !dict) {
       printf("Failed to create property list from %s!\n", argv[1]);
     }
 
-    WriteMyPropertyListToFile(propertyList, argv[2]);
-    CFRelease(propertyList);
+    if (CFDictionaryContainsKey(dict, ENTRY)) {
+      int d = 65535;
+      CFNumberRef n = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &d);
+      CFMutableDictionaryRef iodict = 
+	CFDictionaryCreateMutableCopy(kCFAllocatorDefault, 0, 
+				      CFDictionaryGetValue(dict, ENTRY));
+      CFDictionaryReplaceValue(iodict, CFSTR("IOKitDebug"), n);
+      CFDictionaryReplaceValue(dict, ENTRY, iodict);
+      CFRelease(n);
+    }
+
+    WriteMyPropertyListToFile(dict, argv[2]);
+    CFRelease(propertyList); CFRelease(dict);
   } else {
     printf(":(\n");
   }

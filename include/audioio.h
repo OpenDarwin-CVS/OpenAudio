@@ -1,7 +1,5 @@
-/* -*- c++ -*-
- *
- * OpenDarwin Audio BSD Client
- * An IOService bridging an IOAudioEngine with an entry in /dev
+/*
+ * IOCTL keys for the OpenDarwin Audio BSD Client
  *
  * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
  * All rights reserved.
@@ -29,55 +27,38 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ODAUDIOBSDCLIENT_H_
-#define _ODAUDIOBSDCLIENT_H_
+#ifndef	_AUDIO_IOCTL_H_
+#define	_AUDIO_IOCTL_H_
 
-#include "ODBSDClient.h"
-
+#include <sys/ioccom.h>
 #include <IOKit/audio/IOAudioTypes.h>
-#include <IOKit/audio/IOAudioEngine.h>
-#include <IOKit/audio/IOAudioStream.h>
 
-#define kODAudioBSDClientTypeKey "ODAudioBSDClientType"
+/* general audio ioctl's. */
 
-class ODAudioBSDClient : public ODBSDClient
-{
-  OSDeclareAbstractStructors(ODAudioBSDClient);
+#ifdef UNIMPLEMENTED
+/* perform an audible beep */
+#define AUDIOBEEP _IO('A', 1)
 
- private:
-  static int ninitialised;
-  virtual const char *statusString();
+/* flush audio device */
+#define AUDIOFLUSH _IO('A', 2)
 
-  virtual uint64_t bytesToNanos(uint64_t bytes);
-  virtual uint64_t bytesToFrames(uint64_t bytes);
-  virtual uint64_t nanosToBytes(uint64_t nanos);
-  virtual uint64_t framesToBytes(uint64_t frames);
+/* get latency in nanoseconds */
+#define AUDIOLATENCY _IOR('A', 3, long long)
 
-  virtual AbsoluteTime getTime();
+/* audio format ioctl's. */
 
- protected:
+/* get output format of the audio device */
+#define AUDIOGETOFMT _IOR('A', 11, IOAudioStreamFormat)
 
-  /* STATE-RELATED FIELDS */
+/* set output format of the audio device */
+#define AUDIOSETOFMT _IOW('A', 12, IOAudioStreamFormat)
 
-  bool is_open;
-  UInt32 loopcount;
-  AbsoluteTime next_call;
+/* get input format of the audio device */
+#define AUDIOGETIFMT _IOR('A', 13, IOAudioStreamFormat)
 
-  /* IOAUDIOFAMILY-RELATED FIELDS */
+/* set input format of the audio device */
+#define AUDIOSETIFMT _IOW('A', 14, IOAudioStreamFormat)
 
-  IOAudioEngine *engine;
-  IOAudioStream *outputstream;
+#endif /* UNIMPLEMENTED */
 
-  virtual const char *getDeviceBase() const;
-
- public:
-
-  virtual int open(int flags, int devtype, struct proc *pp);
-  virtual int close(int flags, int mode, struct proc *pp);
-  virtual int write(struct uio *uio, int ioflag);
-
-  virtual bool start(IOService *provider);
-
-};
-
-#endif
+#endif /* !_AUDIO_IOCTL_H_ */
