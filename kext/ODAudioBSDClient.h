@@ -71,8 +71,6 @@ class ODAudioBSDClient : public ODBSDClient
   IOAudioEngine *engine;
   IOAudioStream *outputstream;
 
-  IOAudioSelectorControl *outputselector;
-
   struct {
     IOAudioControl *builtin, *external, *spdif, *boot;
   } outputcontrols;

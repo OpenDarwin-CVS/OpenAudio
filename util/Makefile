@@ -5,7 +5,7 @@
 #
 
 SRCROOT=$(CURDIR)/..
-BINS=str2plist bswap selout
+BINS=str2plist bswap selout setvol
 
 include $(SRCROOT)/config.mak
 
@@ -23,6 +23,12 @@ $(EPREFIX)/%: $(SRCROOT)/%
 
 $(SRCROOT)/%: %
 	$(INSTALL) $< $(SRCROOT)
+
+.depend: $(BINS:%=%.c) Makefile
+	$(RM) $@
+	$(CC) -M $(CPPFLAGS) $(BINS:%=%.c) > $@
+
+-include .depend
 
 %: %.o
 	$(CC) $(LDFLAGS) $< -o $@

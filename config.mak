@@ -16,17 +16,12 @@ CC=gcc
 CXX=g++
 INSTALL=/usr/bin/install
 
-ifeq ($(RELEASE), yes)
-ARCHFLAGS=-arch ppc -arch i386
-CPPFLAGS+=-DNDEBUG
-endif
-
 ifeq ($(KERNEL), yes)
 CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers \
 	-I/System/Library/Frameworks/Kernel.framework/Headers/bsd \
 	-DKERNEL -DKERNEL_PRIVATE -Wall -W -Werror -Wno-unused-parameter
 
-KFLAGS=-no-cpp-precomp -static -fno-common -finline -fno-keep-inline-functions \
+KFLAGS=-static -fno-common -finline -fno-keep-inline-functions \
 	-force_cpusubtype_ALL -Os $(ARCHFLAGS) -nostdinc -g -fno-common \
 	-fmessage-length=0 -force_cpusubtype_ALL
 
@@ -39,8 +34,14 @@ LDFLAGS=$(ARCHFLAGS) -static -nostdlib -r -lcc_kext -g -lkmodc++ -lkmod
 
 else
 
-CPPFLAGS=-W -Wall -Werror
-LDFLAGS=-framework CoreFoundation
-CFLAGS=-std=c99 -pedantic
+CPPFLAGS=-W -Wall -Werror -Wno-unused-parameter
+LDFLAGS=-framework CoreFoundation $(ARCHFLAGS)
+CFLAGS=-std=c99 -pedantic $(ARCHFLAGS)
+CXXFLAGS=$(ARCHFLAGS)
 
+endif
+
+ifeq ($(RELEASE), yes)
+ARCHFLAGS=-arch ppc -arch i386
+CPPFLAGS+=-DNDEBUG
 endif

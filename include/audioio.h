@@ -43,11 +43,12 @@
 
 typedef struct audio_volume {
   /* kIOAudioControlChannelID */
-  uint32_t value;
+  uint16_t value;
   uint8_t id;
   bool muted : 1;
-  int padding : 31;
 } audio_volume_t;
+
+#define AUDIO_VOL_MAX 65535
 
 /* GENERAL AUDIO */
 
@@ -85,17 +86,17 @@ typedef struct audio_volume {
 /* VOLUME CONTROL */
 
 /* send channelid - get volume */
-#define AUDIOGETVOL _IOWR('A', 22, audio_volume_t)
+#define AUDIOGETVOL _IOWR('A', 21, audio_volume_t)
 
 /* set volume */
-#define AUDIOSETVOL _IOW('A', 22, audio_volume_t)
+#define AUDIOSETVOL _IOW('A', 21, audio_volume_t)
 
 /* get output port
    one of IOAudioTypes::kIOAudioSelectorControlSelectionValue* */
-#define AUDIOGETOPORT _IOR('A', 24, int32_t)
+#define AUDIOGETOPORT _IOR('A', 22, uint32_t)
 
 /* select output port
    one of IOAudioTypes::kIOAudioSelectorControlSelectionValue* */
-#define AUDIOSETOPORT _IOWR('A', 24, int32_t)
+#define AUDIOSETOPORT _IOWR('A', 22, uint32_t)
 
 #endif /* !_AUDIO_IOCTL_H_ */

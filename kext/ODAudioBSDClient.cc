@@ -51,12 +51,19 @@ extern "C" {
 #define super ODBSDClient
 
 OSDefineMetaClassAndStructors(ODAudioBSDClient, ODBSDClient);
+
 static int nwrites = 0;
 
 static bool check_channel_id(IOAudioControl *c, int id)
 {
-  return id >= 0 && 
+  DEBUG_FUNCTION();
+  bool b = id != kIOAudioControlChannelNumberInactive &&
+    (signed)c->getChannelID() != kIOAudioControlChannelNumberInactive &&
     (id == kIOAudioControlChannelIDAll || (unsigned)id == c->getChannelID());
+
+  DEBUG("c-id()=%u %s id=%u\n", (int)c->getChannelID(), b ? "==" : "!=", id);
+
+  return b;
 }
 
 const char *ODAudioBSDClient::statusString()
@@ -79,18 +86,24 @@ const char *ODAudioBSDClient::statusString()
 
 uint64_t ODAudioBSDClient::bytesToFrames(uint64_t bytes)
 {
+  DEBUG_FUNCTION();
+
   const IOAudioStreamFormat *f = this->outputstream->getFormat();
   return bytes / f->fBitDepth * 8 / f->fNumChannels;
 }
 
 uint64_t ODAudioBSDClient::framesToBytes(uint64_t frames)
 {
+  DEBUG_FUNCTION();
+
   const IOAudioStreamFormat *f = this->outputstream->getFormat();
   return frames * f->fBitDepth / 8 * f->fNumChannels;
 }
 
 uint64_t ODAudioBSDClient::bytesToNanos(uint64_t bytes)
 {
+  DEBUG_FUNCTION();
+
   const IOAudioStreamFormat *f = this->outputstream->getFormat();
   const IOAudioSampleRate *rate = this->engine->getSampleRate();
   return bytes * max(rate->fraction,1) / (f->fBitDepth / 8) / f->fNumChannels
@@ -99,6 +112,8 @@ uint64_t ODAudioBSDClient::bytesToNanos(uint64_t bytes)
 
 uint64_t ODAudioBSDClient::nanosToBytes(uint64_t nanos)
 {
+  DEBUG_FUNCTION();
+
   const IOAudioStreamFormat *f = this->outputstream->getFormat();
   const IOAudioSampleRate *rate = this->engine->getSampleRate();
   return nanos * rate->whole * f->fNumChannels * (f->fBitDepth / 8)
@@ -107,6 +122,8 @@ uint64_t ODAudioBSDClient::nanosToBytes(uint64_t nanos)
 
 AbsoluteTime ODAudioBSDClient::getTime()
 {
+  DEBUG_FUNCTION();
+
   AbsoluteTime r;
   engine->getLoopCountAndTimeStamp(&loopcount, &r);
   clock_get_uptime(&r);
@@ -159,9 +176,6 @@ ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
     devfs_link(client->devnode, DEVICE_NAME);
 
   IOLog("Engine has %u controls\n", engine->defaultAudioControls->getCount());
-
-  OSIterator *i =
-    OSCollectionIterator::withCollection(engine->defaultAudioControls);
 
   DEBUG("ODAudioBSDClient successfully initialised for %s (%u/%u)\n",
 	engine->getName(), major, client->minor);
@@ -450,39 +464,53 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
   }        
 
   case AUDIOGETOPORT:
-    if (!outputselector)
-      r = ENOTTY;
-    else
-      *((int32_t *)data) = outputselector->getIntValue();
-    break;
+  case AUDIOSETOPORT: {
+    OSIterator *i =
+      OSCollectionIterator::withCollection(engine->defaultAudioControls);
+    r = ENOTTY;
+    if (!i) break;
 
-  case AUDIOSETOPORT:
-    if (!outputselector) {
-      r = ENOTTY;
-    } else {
-      int32_t v = *((int32_t *)data);
+    for (unsigned n = 0; n < engine->defaultAudioControls->getCount(); n++) {
+      IOAudioControl *c = CAST(IOAudioControl, i->getNextObject());
+      if (c && c->getType() == kIOAudioControlTypeSelector &&
+	  c->getSubType() == kIOAudioSelectorControlSubTypeOutput &&
+	  c->getUsage() == kIOAudioControlUsageOutput) {
+	if (cmd == AUDIOGETOPORT) {
+	  *((int32_t *)data) = c->getIntValue();
+	  r = 0;
+	} else if (cmd == AUDIOSETOPORT) {
+	  IOAudioSelectorControl *s =
+	    CAST(IOAudioSelectorControl, c);
+	  int32_t v = *((int32_t *)data);
       
-      if (!outputselector->valueExists(v))
-	r = EINVAL;
-      else
-	outputselector->setValue(v);
+	  if (!s->valueExists(v)) { r = EINVAL; break; }
 
-      *((int32_t *)data) = outputselector->getIntValue();
-
-      if (*((int32_t *)data) != v) r = EINVAL;
+	  s->setValue(v);
+	  *((int32_t *)data) = s->getIntValue();
+	  if (*((int32_t *)data) == v) {
+	    r = 0;
+	  } else {
+	    r = EAGAIN;
+	  }
+	}
+      }
     }
+
     break;
+  }
 
   case AUDIOGETVOL:
   case AUDIOSETVOL: {
     audio_volume_t *volume = (audio_volume_t *)data;
     unsigned nfound = 0;
-    int64_t result = 0;
+    uint64_t result = 0;
     OSIterator *i =
       OSCollectionIterator::withCollection(engine->defaultAudioControls);
 
+    if (!i) { r = ENOTTY; break; }
+
     for (unsigned n = 0; n < engine->defaultAudioControls->getCount(); n++) {
-      IOAudioControl *c = CAST(IOAudioControl, i->getNextObject());
+      IOAudioLevelControl *c = CAST(IOAudioLevelControl, i->getNextObject());
 
       if (c && c->getType() == kIOAudioControlTypeLevel &&
 	  c->getSubType() == kIOAudioLevelControlSubTypeVolume &&
@@ -490,23 +518,32 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 	  check_channel_id(c, volume->id)) {
 	nfound++;
 
+	DEBUG("%s:%u/%u\tid=%u\treq=%u\n",
+	      c->getName(), nfound, n, (unsigned)c->getChannelID(), volume->id);
+
+	/* FIXME: handle various ranges */
 	if (cmd == AUDIOSETVOL) {
-	  /* FIXME: handle various ranges */
-	  c->setValue(volume->value);
+	  uint64_t v = ((uint64_t)volume->value * c->getMaxValue()) / 
+	    (uint64_t)AUDIO_VOL_MAX + c->getMinValue();
+	  c->setValue(v);
+	  DEBUG("value=%u corrected=%llu\n", volume->value, v);
+	} else {
+	  result += 
+	    (uint64_t)AUDIO_VOL_MAX * (c->getIntValue() - c->getMinValue())
+	    / c->getMaxValue();
+	  DEBUG("value=%u result=%llu\n", (int)c->getIntValue(), result);
 	}
-
-	result += c->getIntValue();
       }
-
-      if (!nfound)
-	r = EINVAL;
-      else
-	volume->value = result / nfound;
-
-      VERBOSE_DEBUG("%s:%u type=%.4s subtype=%.4s usage=%.4s\n", c->getName(),
-		    n, (char *)&t, (char *)&s, (char *)&u);
-
     }
+
+    if (!nfound) {
+      r = EINVAL;
+    } else {
+      volume->value = (uint32_t)result / nfound;
+      r = 0;
+    }
+    
+    break;
   }
 
   default:
