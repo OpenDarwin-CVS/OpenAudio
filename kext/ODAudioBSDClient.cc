@@ -195,9 +195,6 @@ bool ODAudioBSDClient::open()
 {
   DEBUG_FUNCTION();
 
-  /* FIXME: This an ugly hack because ODAudioBSDClient::close() isn't called */
-  //this->is_open = false;
-
   if (this->is_open || !engine->outputStreams) {
     DEBUG("%s is in use!\n", engine->getName());
     return false;
