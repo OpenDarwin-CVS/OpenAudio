@@ -23,18 +23,16 @@ clean:
 install: $(KPREFIX)/$(notdir $(TARGET))
 
 uninstall:
+	-kextunload $(KPREFIX)/$(notdir $(TARGET))
 	$(RM) $(KPREFIX)/$(notdir $(TARGET))
 
-reload: $(KPREFIX)/$(notdir $(TARGET))
-	kextunload $(KPREFIX)/$(notdir $(TARGET))
-	$(RM) /System/Library/{Extensions.mkext,Extensions.kextcache}
+reload: uninstall $(KPREFIX)/$(notdir $(TARGET))
 	kextload $(KPREFIX)/$(notdir $(TARGET))
 
 $(PRODUCT): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 
 $(KPREFIX)/$(notdir $(TARGET)): $(PRODUCT) Info.plist
-	$(RM) $@
 	$(INSTALL) -d $@/Contents/MacOS
 	$(INSTALL) -m 644 Info.plist $@/Contents
 	$(INSTALL) -m 644 $(PRODUCT) $@/Contents/MacOS
