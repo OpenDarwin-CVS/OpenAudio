@@ -1,8 +1,4 @@
-
 # -*- Makefile -*-
-
-PRODUCT=ODAudioSystem
-OBJS=module.o ODBSDClient.o ODAudioBSDClient.o
 
 MKDIR=mkdir -p
 STR2PLIST=util/str2plist
@@ -18,8 +14,9 @@ OSMINOR=$(shell $(SYSCTL) -n kern.osrelease | cut -d. -f2)
 
 ARCHFLAGS=
 
-CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers -I./include \
+CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers \
 	-I/System/Library/Frameworks/Kernel.framework/Headers/bsd \
+	-I$(SRCROOT)/include \
 	-DKERNEL -DKERNEL_PRIVATE -Wall -W -Werror -Wno-unused-parameter \
 	-DDARWIN_MAJOR=$(OSMAJOR) -DDARWIN_MINOR=$(OSMINOR)
 
@@ -33,7 +30,3 @@ CXXFLAGS=$(KFLAGS) -fapple-kext -fno-rtti -fno-exceptions -fcheck-new \
 CFLAGS=$(KFLAGS) -fno-builtin
 
 LDFLAGS=$(ARCHFLAGS) -static -nostdlib -r -lcc_kext -g -lkmodc++ -lkmod
-
-SRCS=$(shell for file in $(OBJS); do for ext in .cc .cpp .mm .c .m; do \
-		test -e $${file%.o}$$ext && echo $${file%%.o}$$ext; \
-	done; done)

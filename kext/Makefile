@@ -1,6 +1,14 @@
 #*- makefile -*-
 
-include config.mak
+PRODUCT=ODAudioSystem
+
+TARGET=$(DSTROOT)/$(PRODUCT).kext
+OBJS=module.o ODBSDClient.o ODAudioBSDClient.o
+SRCS=$(shell for file in $(OBJS); do for ext in .cc .cpp .mm .c .m; do \
+		test -e $${file%.o}$$ext && echo $${file%%.o}$$ext; \
+	done; done)
+
+include ../config.mak
 
 .PHONY: .depend clean dist all load unload reload
 
@@ -13,19 +21,19 @@ include config.mak
 all: $(OBJS)
 
 dist: all
-	$(RM) $(PRODUCT).kext
-	$(MKDIR) $(PRODUCT).kext/Contents/MacOS
-	$(MKDIR) $(PRODUCT).kext/Contents/Resources
-	chown -R root:wheel $(PRODUCT).kext
-	chmod -R 755 $(PRODUCT).kext
-	$(CC) $(OBJS) $(LDFLAGS) -o $(PRODUCT).kext/Contents/MacOS/$(PRODUCT)
-	$(CP) Info.plist $(PRODUCT).kext/Contents
+	$(RM) $(TARGET)
+	$(MKDIR) $(TARGET)/Contents/MacOS
+	$(MKDIR) $(TARGET)/Contents/Resources
+	chown -R root:wheel $(TARGET)
+	chmod -R 755 $(TARGET)
+	$(CC) $(OBJS) $(LDFLAGS) -o $(TARGET)/Contents/MacOS/$(PRODUCT)
+	$(CP) Info.plist $(TARGET)/Contents
 
 load: dist
-	kextload -t -s $(PRODUCT).kext/Contents/Resources $(PRODUCT).kext
+	kextload -t -s $(TARGET)/Contents/Resources $(TARGET)
 
 unload: dist
-	kextunload $(PRODUCT).kext
+	kextunload $(TARGET)
 
 reload: unload load
 
@@ -34,7 +42,7 @@ release:
 	ARCHFLAGS="-arch ppc -arch i386" CPPFLAGS="$(CPPFLAGS) -DNDEBUG"
 
 clean:
-	$(RM) $(OBJS) $(PRODUCT) $(PRODUCT).plist $(PRODUCT).kext .depend
+	$(RM) $(OBJS) $(PRODUCT) $(PRODUCT).plist $(TARGET) .depend
 
 .depend:
 	gcc -MM $(CPPFLAGS) $(SRCS) > .depend
