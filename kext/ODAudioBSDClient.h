@@ -69,12 +69,15 @@ class ODAudioBSDClient : public OSObject
   virtual uint64_t nanosToBytes(uint64_t nanos);
   virtual uint64_t framesToBytes(uint64_t frames);
 
+  virtual AbsoluteTime getTime();
+
  protected:
 
   /* STATE-RELATED FIELDS */
 
   bool is_open;
-  AbsoluteTime last_call;
+  UInt32 loopcount;
+  AbsoluteTime next_call;
 
   /* IOAUDIOFAMILY-RELATED FIELDS */
 

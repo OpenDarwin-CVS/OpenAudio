@@ -34,11 +34,15 @@
 #include <IOKit/audio/IOAudioStream.h>
 #include <IOKit/IOWorkLoop.h>
 
+#define LATENCY_FRAMES 8192
+
 #define super OSObject	
 
 OSDefineMetaClassAndStructors(ODAudioBSDClient, OSObject);
 
 int ODAudioBSDClient::ninitialised = 0;
+static int nwrites = 0;
+
 
 /* A struct describing which functions will get invoked for certain
  * actions.
@@ -128,6 +132,14 @@ uint64_t ODAudioBSDClient::nanosToBytes(const IOAudioStreamFormat *f,
     / max(rate->fraction, 1) / 1000000000LL;
 }
 
+AbsoluteTime ODAudioBSDClient::getTime()
+{
+  AbsoluteTime r;
+  engine->getLoopCountAndTimeStamp(&loopcount, &r);
+  clock_get_uptime(&r);
+  return r;
+}
+
 ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
 						    int minor)
 {
@@ -205,9 +217,9 @@ bool ODAudioBSDClient::open()
 	 engine->outputStreams->getObject(0) : NULL);
 
   if (!this->outputstream) return false;
+  nwrites = 0;
 
   this->is_open = true;
-  clock_get_uptime(&this->last_call);
 
   DEBUG("Opening %s!\n", engine->getName());
 
@@ -219,28 +231,81 @@ void ODAudioBSDClient::close()
   DEBUG_FUNCTION();
   DEBUG("Closing %s!\n", engine->getName());
 
-  engine->performFlush();
   this->is_open = false;
+  engine->performFlush();
 }
 
 int ODAudioBSDClient::write(struct uio *uio)
 {
   DEBUG_FUNCTION();
 
-  if (engine->getState() != kIOAudioEngineRunning) {
-    IOLog("Restarting %s!\n", engine->getName());
-    engine->startAudioEngine();
+  IOAudioEnginePosition *endpos = &engine->audioEngineStopPosition;
+  AbsoluteTime now = getTime();
+  unsigned int buflen = outputstream->getSampleBufferSize();
+  void *buf = outputstream->getSampleBuffer();
+  nwrites++;
+
+  {
+    uint64_t t1, t2;
+    
+    absolutetime_to_nanoseconds(next_call, &t1);
+    absolutetime_to_nanoseconds(now, &t2);
+
+    if (t2 < t1) {
+#if 1
+      unsigned delay = t1 - t2;
+      int frame_diff = 
+	(endpos->fLoopCount * engine->numSampleFramesPerBuffer +
+	 endpos->fSampleFrame) - 
+	(engine->getStatus()->fCurrentLoopCount * engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
+
+      if (frame_diff <= 0) {
+	      nwrites, (unsigned)-frame_diff);
+	delay = 0;
+      } else if (frame_diff < LATENCY_FRAMES) {
+	unsigned correction = 
+	  bytesToNanos(framesToBytes(LATENCY_FRAMES - frame_diff));
+	DEBUG("RACE CONDITION EMMINENT: %u %u off %u corrected\n",
+	      nwrites, (unsigned)frame_diff, correction);
+	delay -= (delay > correction) ? correction : delay;
+      }
+
+
+      IOSleep(delay / 1000000);
+      IODelay((delay / 1000) % 1000);
+#else
+      DEBUG("%u \n", (unsigned)(tick/delay));
+      //tsleep(this, 0, "audio", (t1 - t2) / 1000);
+#endif
+    } else {
+      DEBUG("NOT SLEEPING\n");
+    }
   }
 
-  IOAudioEnginePosition *endpos = &engine->audioEngineStopPosition;
-  unsigned int buflen = outputstream->getSampleBufferSize();
+  if (engine->getState() != kIOAudioEngineRunning) {
+    DEBUG("%u: Restarting %s!\n", nwrites, engine->getName());
+
+    engine->stopAudioEngine();
+    engine->clearAllSampleBuffers();
+    engine->resetStatusBuffer();
+    getTime();
+
+    endpos->fSampleFrame = engine->getCurrentSampleFrame();
+    endpos->fLoopCount = loopcount + 1;
+
+    next_call = now;
+
+    bzero(buf, buflen);
+  }
+
   unsigned int offset = framesToBytes(endpos->fSampleFrame);  
   /* calculate offset */
-  unsigned written = MIN(MIN(buflen - offset, (uint64_t)uio->uio_resid),
-			 buflen / 4);
-
-  int r = uiomove((caddr_t)this->outputstream->getSampleBuffer() + offset,
-		  written, uio);
+  unsigned written = 
+    MIN(MIN(buflen - offset, (uint64_t)uio->uio_resid & 0xffffff00),
+	buflen / engine->numErasesPerBuffer);
+  int r = uiomove((caddr_t)buf + offset, written, uio);
+  uint64_t delay = bytesToNanos(written);
+  int64_t correction = 0;
 
   /* pospone end of playback */
   if (offset + written == buflen) {
@@ -250,20 +315,76 @@ int ODAudioBSDClient::write(struct uio *uio)
     endpos->fSampleFrame = bytesToFrames(offset + written);
   }
 
-  AbsoluteTime now;
-  uint64_t correction, delay;
+  switch (CMP_ABSOLUTETIME(&now, &next_call)) {
+  case 1: {
+    /* now > next_call */
+    AbsoluteTime diff = now;
+    uint64_t d;
 
-  clock_get_uptime(&now);
-  SUB_ABSOLUTETIME(&now, &last_call);
-  absolutetime_to_nanoseconds(now, &correction);
-  delay = bytesToNanos(written);
+    SUB_ABSOLUTETIME(&diff, &next_call);
+    absolutetime_to_nanoseconds(diff, &d);
 
-  if (delay > correction)
-    delay -= correction;
+    if (delay < d)
+      DEBUG("%u: now > next_call: c=%llu d=%llu\n", nwrites, d, delay);
 
-  IOSleep(delay / 1000000);
+#if 0
+    correction = (delay >= d) ? -d : -delay;
+#else
+    correction = (delay >= d) ? -d : 0;
+#endif
 
-  clock_get_uptime(&last_call);
+    break;
+  }
+  case -1: {
+    /* now < next_call 
+     * this hardly ever happens */
+    AbsoluteTime diff = next_call;
+    uint64_t d;
+
+    SUB_ABSOLUTETIME(&diff, &now);
+    absolutetime_to_nanoseconds(diff, &d);
+    correction = d;
+
+    if (delay < d)
+      DEBUG("%u: now < next_call: delay=%llu d=%llu\n", nwrites, delay, d);
+
+    break;
+  }
+  case 0:
+    /* now == next_call */
+    DEBUG("%u: now = next_call: d=%llu %llu == %llu\n", nwrites, delay,
+	  AbsoluteTime_to_scalar(&now), AbsoluteTime_to_scalar(&next_call));
+    correction = -delay;
+    break;
+  default:
+    /* now ?? next_call */
+    DEBUG("%u: now ?? next_call\n", nwrites);
+    break;
+  }
+  next_call = now;
+  nanoseconds_to_absolutetime(delay + correction, &now);
+  ADD_ABSOLUTETIME(&next_call, &now);
+
+  delay += correction;
+
+  if (engine->getState() != kIOAudioEngineRunning) {
+    engine->startAudioEngine();
+    engine->performFlush();
+  }
+
+#if 0
+  int frame_diff = endpos->fLoopCount * endpos->fSampleFrame - 
+    (engine->getStatus())->fCurrentLoopCount *  engine->getCurrentSampleFrame();
+
+  if (frame_diff < 0) {
+    DEBUG("RACE CONDITION DETECTED: %u %u off\n",
+	  nwrites, (unsigned)-frame_diff);
+    delay = 0;
+  } else {
+    IOSleep(delay / 1000000);
+    IODelay((delay / 1000) % 1000);
+  }
+#endif
 
   return r;
 }
