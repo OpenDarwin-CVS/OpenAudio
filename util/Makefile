@@ -11,12 +11,13 @@ include ../config.mak
 
 all: $(BINS)
 
-dist:
+dist: $(BINS)
+	$(INSTALL) $(BINS) $(SRCROOT)
 
 clean:
-	$(RM) $(BINS) $(BINS:=.o)
+	$(RM) $(BINS) $(BINS:%=%.o) $(BINS:%=../%)
 
-install:
+install: $(BINS)
 	$(INSTALL) -d
 	$(INSTALL) $(BINS) $(EPREFIX)
 
