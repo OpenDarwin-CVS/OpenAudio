@@ -167,7 +167,7 @@ bool ODAudioBSDClient::start(IOService *provider)
 {
   DEBUG_FUNCTION();
 
-  super::start(provider);
+  if (!super::start(provider)) return false;
 
   /* obtain engine and output stream */
   engine = CAST(IOAudioEngine, this->getProvider());
@@ -184,13 +184,12 @@ bool ODAudioBSDClient::start(IOService *provider)
 
   /* obtain audio controls */
 
-  if (engine->defaultAudioControls) {
+  if (engine->defaultAudioControls && 
+      engine->defaultAudioControls->getCount() > 0) {
     IOLog("Engine has %u controls\n", engine->defaultAudioControls->getCount());
 
     OSIterator *i =
       OSCollectionIterator::withCollection(engine->defaultAudioControls);
-
-    if (!i) return false;
     
     for (unsigned n = 0; n < engine->defaultAudioControls->getCount(); n++) {
       IOAudioControl *c = CAST(IOAudioControl, i->getNextObject());
@@ -200,10 +199,9 @@ bool ODAudioBSDClient::start(IOService *provider)
       IOLog("%s:%u type=%.4s subtype=%.4s usage=%.4s\n", c->getName(),
 	    n, (char *)&t, (char *)&s, (char *)&u);
     }
-    
+
   } else {
     IOLog("Engine has no audio controls!\n");
-    return false;
   }
 
   /* pair with the engine */
