@@ -15,7 +15,7 @@ SYSCTL=/usr/sbin/sysctl
 OSMAJOR=$(shell $(SYSCTL) -n kern.osrelease | cut -d. -f1)
 OSMINOR=$(shell $(SYSCTL) -n kern.osrelease | cut -d. -f2)
 
-ARCHFLAGS=-arch ppc #-arch i386
+ARCHFLAGS=
 
 CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers \
 	-I/System/Library/Frameworks/Kernel.framework/Headers/bsd \
