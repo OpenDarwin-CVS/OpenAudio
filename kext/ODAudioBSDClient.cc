@@ -225,6 +225,11 @@ int ODAudioBSDClient::open(int flags, int devtype, struct proc *pp)
 	this->blocking ? "" : "non",
 	flags & FWRITE ? " with write-access" : "");
 
+#if !NICE_LOCKS
+  /* we assume complete control over the device */
+  engine->lockAllStreams();
+#endif
+
   return 0;
 }
 
@@ -234,6 +239,11 @@ int ODAudioBSDClient::close(int flags, int mode, struct proc *pp)
 
   this->is_open = false;
   engine->performFlush();
+
+#if !NICE_LOCKS
+  /* we give up control of the device */
+  engine->unlockAllStreams();
+#endif
 
   return 0;
 }
@@ -308,7 +318,9 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 {
   DEBUG_FUNCTION();
 
+#if NICE_LOCKS
   IORecursiveLockLock(outputstream->streamIOLock);
+#endif
 
   /* The audio engine is stopped. This means that a) there is nothing
    * buffered so we should clear it and b) we should restart it when
@@ -357,9 +369,11 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
   engine->stopEngineAtPosition(&endpos);
 #endif
 
+#if NICE_LOCKS
   /* HACK: by locking the audio stream when sleeping, we ensure that
      it isn't stopped. */
   //IORecursiveLockUnlock(outputstream->streamIOLock);
+#endif
 
   /* delay until next_call */
   if (this->blocking) {
@@ -367,7 +381,9 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
     IODelay((delay / 1000) % 1000);
   }
 
+#if NICE_LOCKS
   //IORecursiveLockLock(outputstream->streamIOLock);
+#endif
 
   /* begin calculating the next delay */
   delay = bytesToNanos(written);
@@ -437,7 +453,10 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
     engine->performFlush();
   }
 #endif
+
+#if NICE_LOCKS
   IORecursiveLockUnlock(outputstream->streamIOLock);
+#endif
   
   return r;
 }
@@ -446,7 +465,9 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
   DEBUG_FUNCTION();
 
+#if NICE_LOCKS
   engine->lockAllStreams();
+#endif
   
   int r = 0;
 
@@ -606,7 +627,9 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
     r = ENOTTY;
   }
 
+#if NICE_LOCKS
   engine->unlockAllStreams();
+#endif
 
   return r;
 }
