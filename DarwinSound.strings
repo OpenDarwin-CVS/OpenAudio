@@ -14,4 +14,4 @@ OSBundleLibraries = {
     com.apple.iokit.IOAudioFamily = 1.1fc6;
     com.apple.kernel.bsd = 6.0;
     com.apple.kernel.mach = 6.0;
-}
+};
