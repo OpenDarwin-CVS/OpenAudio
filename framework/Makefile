@@ -16,28 +16,22 @@ include $(SRCROOT)/config.mak
 
 all: $(PRODUCT)
 
-dist: $(TARGET)
-
 install: $(FPREFIX)/$(notdir $(TARGET))
 
 uninstall:
 	$(RM) $(FPREFIX)/$(notdir $(TARGET))
 
 clean:
-	$(RM) $(OBJS) $(PRODUCT) $(TARGET) .depend
-
-$(TARGET): $(PRODUCT)
-	$(RM) $(TARGET)
-	$(INSTALL) -d $(TARGET)/Headers $(TARGET)/Resource
-	$(INSTALL) $(PRODUCT) $(TARGET)
-	$(INSTALL) $(wildcard $(SRCROOT)/include/*.h) $(TARGET)/Headers
+	$(RM) $(OBJS) $(PRODUCT) .depend
 
 $(PRODUCT): $(OBJS)
 	$(CC) -dynamiclib $(OBJS) $(LDFLAGS) -o $(PRODUCT)
 
-$(FPREFIX)/$(notdir $(TARGET)): $(TARGET)
-	$(RM) $(FPREFIX)/$(notdir $(TARGET))
-	$(CP) $(TARGET) $(FPREFIX)
+$(FPREFIX)/$(notdir $(TARGET)): $(PRODUCT)
+	$(RM) $@
+	$(INSTALL) -d $@/Headers $@/Resource
+	$(INSTALL) $(PRODUCT) $@
+	$(INSTALL) $(wildcard $(SRCROOT)/include/*.h) $@/Headers
 
 .depend: $(SRCS) Makefile $(SRCROOT)/config.mak
 	$(RM) $@

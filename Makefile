@@ -5,10 +5,10 @@
 #
 
 SUBDIRS=framework kext util
-SUBTARGETS=all clean dist install uninstall
+SUBTARGETS=all clean install uninstall
 
 $(SUBTARGETS):
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i $@ &&) :
+	$(foreach i,$(SUBDIRS),$(MAKE) $(MFLAGS) -C $i $@ &&) :
 
-release:
-	$(MAKE) RELEASE=yes clean dist
+release: MFLAGS+=RELEASE=yes
+release: clean all

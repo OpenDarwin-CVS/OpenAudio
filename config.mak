@@ -32,7 +32,7 @@ KFLAGS=-static -fno-common -finline -fno-keep-inline-functions \
 CXXFLAGS=$(KFLAGS) -fapple-kext -fno-rtti -fno-exceptions -fcheck-new \
 	 -msoft-float -fpermissive -mlong-branch
 
-CFLAGS=$(KFLAGS) -fno-builtin
+CFLAGS=$(KFLAGS) -std=c99 -fno-builtin
 
 LDFLAGS=$(ARCHFLAGS) -static -nostdlib -r -lcc_kext -g -lkmodc++ -lkmod
 
@@ -46,7 +46,7 @@ CXXFLAGS=-O3 $(ARCHFLAGS)
 endif
 
 ifeq ($(RELEASE), yes)
-ARCHFLAGS=$(foreach i, ppc i386, \
+ARCHFLAGS:=$(foreach i, ppc ppc64 i386, \
 	$(shell test -d /usr/libexec/gcc/darwin/$i && echo "-arch $i"))
 endif
 

@@ -17,10 +17,8 @@ include $(SRCROOT)/config.mak
 
 all: $(PRODUCT)
 
-dist: $(TARGET)
-
 clean:
-	$(RM) $(OBJS) $(PRODUCT) $(TARGET) .depend
+	$(RM) $(OBJS) $(PRODUCT) .depend
 
 install: $(KPREFIX)/$(notdir $(TARGET))
 
@@ -35,15 +33,11 @@ reload: $(KPREFIX)/$(notdir $(TARGET))
 $(PRODUCT): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 
-$(TARGET): $(PRODUCT) Info.plist
+$(KPREFIX)/$(notdir $(TARGET)): $(PRODUCT) Info.plist
 	$(RM) $@
 	$(INSTALL) -d $@/Contents/MacOS
 	$(INSTALL) -m 644 Info.plist $@/Contents
 	$(INSTALL) -m 644 $(PRODUCT) $@/Contents/MacOS
-
-$(KPREFIX)/$(notdir $(TARGET)): $(TARGET)
-	$(RM) $(KPREFIX)/$(notdir $(TARGET))
-	$(CP) $(TARGET) $(KPREFIX)
 
 .depend: $(SRCS) Makefile $(SRCROOT)/config.mak
 	$(RM) $@

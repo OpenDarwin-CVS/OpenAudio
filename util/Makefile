@@ -11,21 +11,16 @@ include $(SRCROOT)/config.mak
 
 all: $(BINS)
 
-dist: $(BINS:%=$(SRCROOT)/%)
-
 clean:
-	$(RM) $(BINS) $(BINS:%=%.o) $(BINS:%=$(SRCROOT)/%)
+	$(RM) $(BINS) $(BINS:%=%.o)
 
 install: $(BINS:%=$(EPREFIX)/%)
 
 uninstall:
 	$(RM) $(BINS:%=$(EPREFIX)/%)
 
-$(EPREFIX)/%: $(SRCROOT)/%
+$(EPREFIX)/%: %
 	$(INSTALL) $< $(EPREFIX)
-
-$(SRCROOT)/%: %
-	$(INSTALL) $< $(SRCROOT)
 
 .depend: $(BINS:%=%.c) Makefile $(SRCROOT)/config.mak
 	$(RM) $@
