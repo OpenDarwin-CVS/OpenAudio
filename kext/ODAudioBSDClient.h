@@ -74,6 +74,7 @@ class ODAudioBSDClient : public OSObject
   /* STATE-RELATED FIELDS */
 
   bool is_open;
+  AbsoluteTime last_call;
 
   /* IOAUDIOFAMILY-RELATED FIELDS */
 

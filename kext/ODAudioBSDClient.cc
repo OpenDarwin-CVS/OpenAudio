@@ -196,7 +196,7 @@ bool ODAudioBSDClient::open()
   DEBUG_FUNCTION();
 
   /* FIXME: This an ugly hack because ODAudioBSDClient::close() isn't called */
-  this->is_open = false;
+  //this->is_open = false;
 
   if (this->is_open || !engine->outputStreams) {
     DEBUG("%s is in use!\n", engine->getName());
@@ -210,6 +210,7 @@ bool ODAudioBSDClient::open()
   if (!this->outputstream) return false;
 
   this->is_open = true;
+  clock_get_uptime(&this->last_call);
 
   DEBUG("Opening %s!\n", engine->getName());
 
@@ -234,9 +235,9 @@ int ODAudioBSDClient::write(struct uio *uio)
     engine->startAudioEngine();
   }
 
+  IOAudioEnginePosition *endpos = &engine->audioEngineStopPosition;
   unsigned int buflen = outputstream->getSampleBufferSize();
-  unsigned int offset =
-    framesToBytes(engine->audioEngineStopPosition.fSampleFrame);  
+  unsigned int offset = framesToBytes(endpos->fSampleFrame);  
   /* calculate offset */
   unsigned written = MIN(MIN(buflen - offset, (uint64_t)uio->uio_resid),
 			 buflen / 4);
@@ -246,16 +247,26 @@ int ODAudioBSDClient::write(struct uio *uio)
 
   /* pospone end of playback */
   if (offset + written == buflen) {
-    engine->audioEngineStopPosition.fSampleFrame = 0;
-    engine->audioEngineStopPosition.fLoopCount++;
+    endpos->fSampleFrame = 0;
+    endpos->fLoopCount++;
   } else {
-    engine->audioEngineStopPosition.fSampleFrame =
-      bytesToFrames(offset + written);
+    endpos->fSampleFrame = bytesToFrames(offset + written);
   }
 
-  IOLog("%u bytes written\n", written);
+  AbsoluteTime now;
+  uint64_t correction, delay;
 
-  IOSleep(bytesToNanos(written) / 1000000);
+  clock_get_uptime(&now);
+  SUB_ABSOLUTETIME(&now, &last_call);
+  absolutetime_to_nanoseconds(now, &correction);
+  delay = bytesToNanos(written);
+
+  if (delay > correction)
+    delay -= correction;
+
+  IOSleep(delay / 1000000);
+
+  clock_get_uptime(&last_call);
 
   return r;
 }
