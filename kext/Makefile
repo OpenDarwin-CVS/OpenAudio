@@ -2,7 +2,9 @@
 
 PRODUCT=ODAudioSystem
 
-TARGET=$(DSTROOT)/$(PRODUCT).kext
+SRCROOT=$(CURDIR)/..
+
+TARGET=$(SRCROOT)/$(PRODUCT).kext
 OBJS=module.o ODBSDClient.o ODAudioBSDClient.o
 SRCS=$(shell for file in $(OBJS); do for ext in .cc .cpp .mm .c .m; do \
 		test -e $${file%.o}$$ext && echo $${file%%.o}$$ext; \

@@ -430,10 +430,7 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 
   case AUDIOSETOFMT:
     DEBUG("AUDIOSETOFMT\n");
-    if (f)
-      r = outputstream->setFormat((IOAudioStreamFormat *)data) ? EINVAL : r;
-    else
-      r = EINVAL;
+    r = outputstream->setFormat((IOAudioStreamFormat *)data) ? EINVAL : r;
 
   default:
     DEBUG("!?\n");
