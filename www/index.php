@@ -79,9 +79,6 @@
 	  directory and type <code>make</code>.
 	</li>
 	<li>
-	  To create the bundles, type <code>make dist</code>.
-	</li>
-	<li>
 	  To install framework, binaries and kernel extension,
 	  type <code>make install</code>, as <code>root</code>.
 	</li>
