@@ -51,6 +51,7 @@ protected:
 
   /* this return the base name of the /dev/<name>N entries */
   virtual const char *getDeviceBase() const = 0;
+  virtual uid_t getOwner() const = 0;
 
 public:
 

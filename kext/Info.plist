@@ -5,7 +5,7 @@
 	<key>CFBundleExecutable</key>
 	<string>OpenAudio</string>
 	<key>CFBundleGetInfoString</key>
-	<string>OpenAudio version 0.1, Copyright 2003 Sam O'Connor.</string>
+	<string>OpenAudio sound system for OpenDarwin, 0.1</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.opendarwin.OpenAudio</string>
 	<key>CFBundleName</key>
@@ -40,8 +40,10 @@
 	<string>Copyright (c) 2004 Dan Villiom Podlaski Christiansen</string>
 	<key>OSBundleLibraries</key>
 	<dict>
-		<key>com.apple.iokit.IOAudioFamily</key>
-		<string>1.1fc6</string>
+	  <key>com.apple.kernel.bsd</key>
+	  <string>6.0</string>
+	  <key>com.apple.iokit.IOAudioFamily</key>
+	  <string>1.3</string>
 	</dict>
 </dict>
 </plist>

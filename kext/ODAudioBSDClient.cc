@@ -44,9 +44,11 @@ extern "C" {
 #include <sys/param.h>
 #include <sys/uio.h>
 #include <sys/proc.h>
-}
 
-#define LATENCY_FRAMES 8192
+#include <sys/fcntl.h>
+#include <sys/errno.h>
+#include <sys/filio.h>
+}
 
 #define super ODBSDClient
 
@@ -84,7 +86,7 @@ const char *ODAudioBSDClient::statusString()
   }
 }
 
-uint64_t ODAudioBSDClient::bytesToFrames(uint64_t bytes)
+int64_t ODAudioBSDClient::bytesToFrames(int64_t bytes)
 {
   DEBUG_FUNCTION();
 
@@ -92,7 +94,7 @@ uint64_t ODAudioBSDClient::bytesToFrames(uint64_t bytes)
   return bytes / f->fBitDepth * 8 / f->fNumChannels;
 }
 
-uint64_t ODAudioBSDClient::framesToBytes(uint64_t frames)
+int64_t ODAudioBSDClient::framesToBytes(int64_t frames)
 {
   DEBUG_FUNCTION();
 
@@ -100,7 +102,7 @@ uint64_t ODAudioBSDClient::framesToBytes(uint64_t frames)
   return frames * f->fBitDepth / 8 * f->fNumChannels;
 }
 
-uint64_t ODAudioBSDClient::bytesToNanos(uint64_t bytes)
+int64_t ODAudioBSDClient::bytesToNanos(int64_t bytes)
 {
   DEBUG_FUNCTION();
 
@@ -110,7 +112,7 @@ uint64_t ODAudioBSDClient::bytesToNanos(uint64_t bytes)
     * 1000000000LL / rate->whole;
 }
 
-uint64_t ODAudioBSDClient::nanosToBytes(uint64_t nanos)
+int64_t ODAudioBSDClient::nanosToBytes(int64_t nanos)
 {
   DEBUG_FUNCTION();
 
@@ -130,63 +132,36 @@ AbsoluteTime ODAudioBSDClient::getTime()
   return r;
 }
 
-#if 0
-ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
-						    int minor)
+void ODAudioBSDClient::reset()
 {
   DEBUG_FUNCTION();
 
-  if (!engine)
-    return NULL;
+  /* stop it */
+  engine->stopAudioEngine();
 
-  ODAudioBSDClient *client = new ODAudioBSDClient;  
+  /* reset it */
+  engine->clearAllSampleBuffers();
+  engine->resetStatusBuffer();
+  getTime();
 
-  if (!client->init()) {
-    IOLog("Failed to initialise client!\n");
-    client->release();
-    return NULL;
-  }
+  /* there is nothing buffered */
+  engine->audioEngineStopPosition.fSampleFrame = 0;
+  engine->audioEngineStopPosition.fLoopCount = 0;
 
-  if (!ninitialised++)
-    major = cdevsw_add(major, &chardev);
+  /* there is no previous call */
+  next_call = getTime();
 
-  if (major < 0) {
-    IOLog("Failed to allocate major device number!\n");
-    client->release();
-    return NULL;
-  }
-
-  client->engine = engine;
-  client->minor = minor;
-
-  client->is_open = false;
-
-  client->devnode =
-    devfs_make_node(makedev(major, client->minor),
-		    DEVFS_CHAR, UID_ROOT, GID_OPERATOR, 
-		    UMASK, DEVICE_NAME "%x", client->minor);
-
-  if (!client->devnode) {
-    IOLog("Failed to allocate minor device number!\n");
-    client->release();
-    return NULL;
-  }
- 
-  if (client->minor == 0)
-    devfs_link(client->devnode, DEVICE_NAME);
-
-  IOLog("Engine has %u controls\n", engine->defaultAudioControls->getCount());
-
-  DEBUG("ODAudioBSDClient successfully initialised for %s (%u/%u)\n",
-	engine->getName(), major, client->minor);
-
-  return client;
+  /* just in case */
+  bzero(outputstream->getSampleBuffer(), outputstream->getSampleBufferSize());
 }
-#endif
 
 bool ODAudioBSDClient::start(IOService *provider)
 {
   DEBUG_FUNCTION();
+
+  this->owner = -1;
+  this->is_open = false;
+  this->blocking = false;
 
   if (!super::start(provider)) return false;
 
@@ -204,7 +179,6 @@ bool ODAudioBSDClient::start(IOService *provider)
   nwrites = 0;
 
   /* obtain audio controls */
-
   if (engine->defaultAudioControls && 
       engine->defaultAudioControls->getCount() > 0) {
     IOLog("Engine has %u controls\n", engine->defaultAudioControls->getCount());
@@ -234,19 +208,14 @@ int ODAudioBSDClient::open(int flags, int devtype, struct proc *pp)
 {
   DEBUG_FUNCTION();
 
-  /* declared and maintained by the VFS subsystem */
-  extern uid_t console_user;
-
   /* only allow root and the console user to access the device */
-  if (pp->p_ucred->cr_uid && console_user != pp->p_ucred->cr_uid)
+  if (pp->p_ucred->cr_uid && this->getOwner() != pp->p_ucred->cr_uid)
     return EACCES;
-
 
   if (this->is_open) return EBUSY;
 
+  this->blocking = flags & O_NONBLOCK != O_NONBLOCK;
   this->is_open = true;
-
-  DEBUG("Opening %s!\n", engine->getName());
 
   return 0;
 }
@@ -261,7 +230,27 @@ int ODAudioBSDClient::close(int flags, int mode, struct proc *pp)
   return 0;
 }
 
-unsigned ODAudioBSDClient::calculateDelay(AbsoluteTime now)
+int64_t ODAudioBSDClient::getBufferedFrames()
+{
+  DEBUG_FUNCTION();
+
+  return
+    (engine->audioEngineStopPosition.fLoopCount *
+     engine->numSampleFramesPerBuffer +
+     engine->audioEngineStopPosition.fSampleFrame) - 
+    (engine->getStatus()->fCurrentLoopCount * 
+     engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
+}
+
+int64_t ODAudioBSDClient::getLatency()
+{
+  DEBUG_FUNCTION();
+
+  return 
+    bytesToNanos(framesToBytes(this->getBufferedFrames()));
+}
+
+unsigned ODAudioBSDClient::getDelay(AbsoluteTime now)
 {
   DEBUG_FUNCTION();
 
@@ -272,34 +261,32 @@ unsigned ODAudioBSDClient::calculateDelay(AbsoluteTime now)
 
   if (t2 < t1) {
     unsigned delay = t1 - t2;
-    int frame_diff = 
-      (engine->audioEngineStopPosition.fLoopCount *
-       engine->numSampleFramesPerBuffer +
-       engine->audioEngineStopPosition.fSampleFrame) - 
-      (engine->getStatus()->fCurrentLoopCount * 
-       engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
+    int byte_diff = framesToBytes(this->getBufferedFrames());
+    const int min_diff = outputstream->getSampleBufferSize() / 2;
 
-    if (frame_diff <= 0) {
+    if (byte_diff < 0) {
       /* The end position has been overtaken by the current frame.
        * This means we're behind and shouldn't wait at all */
-      VERBOSE_DEBUG("RACE CONDITION DETECTED: %u %u off\n",
-		    nwrites, -frame_diff);
+      DEBUG("RACE CONDITION DETECTED: %u %u off\n", nwrites, -byte_diff);
       delay = 0;
-    } else if (frame_diff < LATENCY_FRAMES) {
-      /* The end position is less than LATENCY_FRAMES ahead of the
-       * current frame. LATENCY_FRAMES is the safe value we chose to
-       * avoid skipping. Decrease the delay to ensure the latency. */
-      unsigned correction = 
-	bytesToNanos(
-		     framesToBytes(LATENCY_FRAMES - frame_diff));
-      VERBOSE_DEBUG("RACE CONDITION EMMINENT: %u %u off %u corrected\n",
-		    nwrites, (unsigned)frame_diff, correction);
-      delay -= (delay > correction) ? correction : delay;
+    } else if (byte_diff < min_diff) {
+      /* The end position is in the same half of the buffer as the
+       * current frame. This can cause race conditions, so we decrease
+       * the delay to ensure the latency. */
+      unsigned correction = bytesToNanos(min_diff - byte_diff);
+      if (0 && delay > correction) {
+	delay -= correction;
+      } else {
+	/* the correction is so large that we shouldn't wait */
+	DEBUG("RACE CONDITION EMMINENT: %u %u off %u corrected\n",
+	      nwrites, byte_diff, correction);
+	delay = 0;
+      }
     }
 
     return delay;
   } else {
-    VERBOSE_DEBUG("NOT SLEEPING\n");
+    VERBOSE_DEBUG("NO DELAY\n");
     return 0;
   }
 }
@@ -312,49 +299,26 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
   AbsoluteTime now = getTime();
   unsigned int buflen = outputstream->getSampleBufferSize();
   void *buf = outputstream->getSampleBuffer();
+  uint64_t delay = this->getDelay(now);
   nwrites++;
 
-  /* delay until next_call */
-  {
-    unsigned delay = this->calculateDelay(now);
-
-    IOSleep(delay / 1000000);
-    IODelay((delay / 1000) % 1000);
-  }
+  if (!this->blocking && delay)
+    return EAGAIN;
 
   /* The audio engine is stopped. This means that a) there is nothing
    * buffered so we should clear it and b) we should restart it when
    * we copied the audio to it. */
   if (engine->getState() != kIOAudioEngineRunning) {
-    if (nwrites > 1)
-      IOLog("%u: Restarting %s!\n", nwrites, engine->getName());
-    else
-      IOLog("Starting %s!\n", engine->getName());
-
-    /* stop it */
-    engine->stopAudioEngine();
-    engine->clearAllSampleBuffers();
-    engine->resetStatusBuffer();
-    getTime();
-
-    /* there is nothing buffered */
-    endpos.fSampleFrame = engine->getCurrentSampleFrame();
-    endpos.fLoopCount = loopcount + 1;
-
-    /* there is no previous call */
-    next_call = now;
-
-    /* just in case */
-    bzero(buf, buflen);
+    IOLog("%u: Restarting %s!\n", nwrites, engine->getName());
+    this->reset();
   }
 
   unsigned int offset = framesToBytes(endpos.fSampleFrame);  
   /* calculate offset */
   unsigned written = 
-    min(min(buflen - offset, (uint64_t)uio->uio_resid),
+    min(min(buflen - offset, (int64_t)uio->uio_resid),
 	buflen / engine->numErasesPerBuffer);
   int r = uiomove((caddr_t)buf + offset, written, uio);
-  uint64_t delay = bytesToNanos(written);
   int64_t correction = 0;
 
   /* pospone end of playback */
@@ -367,6 +331,16 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 
   engine->audioEngineStopPosition = endpos;
   engine->stopEngineAtPosition(&engine->audioEngineStopPosition);
+
+  /* delay until next_call */
+  
+  if (this->blocking) {
+    IOSleep(delay / 1000000);
+    IODelay((delay / 1000) % 1000);
+  }
+
+  /* begin calculating the next delay */
+  delay = bytesToNanos(written);
 
   /* handle the three different possible relations between the chosen
    * time for this call, 'next_call', and the actual time for this call,
@@ -454,14 +428,18 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 
   case AUDIOSETOFMT:
     DEBUG("AUDIOSETOFMT\n");
-    r = outputstream->setFormat((IOAudioStreamFormat *)data) ? EINVAL : r;
+    r = outputstream->setFormat((IOAudioStreamFormat *)data) ? EINVAL : 0;
     break;
 
-  case AUDIOLATENCY: {
-    DEBUG("AUDIOSETOFMT\n");
-    *((int32_t *)data) = calculateDelay(getTime());
+  case AUDIOLATENCY:
+    DEBUG("AUDIOLATENCY\n");
+    *((int64_t *)data) = this->getLatency();
     break;
-  }        
+
+  case AUDIOGETDELAY:
+    DEBUG("AUDIOGETDELAY\n");
+    *((int64_t *)data) = (int64_t)this->getDelay(this->getTime());
+    break;
 
   case AUDIOGETOPORT:
   case AUDIOSETOPORT: {
@@ -503,7 +481,7 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
   case AUDIOSETVOL: {
     audio_volume_t *volume = (audio_volume_t *)data;
     unsigned nfound = 0;
-    uint64_t result = 0;
+    uint32_t result = 0;
     OSIterator *i =
       OSCollectionIterator::withCollection(engine->defaultAudioControls);
 
@@ -522,17 +500,24 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 	DEBUG("%s:%u/%u\tid=%u\treq=%u\n",
 	      l->getName(), nfound, n, (unsigned)l->getChannelID(), volume->id);
 
-	/* FIXME: handle various ranges */
 	if (cmd == AUDIOSETVOL) {
-	  uint64_t v = ((uint64_t)volume->value * l->getMaxValue()) / 
-	    (uint64_t)AUDIO_VOL_MAX + l->getMinValue();
+	  uint32_t v = ((uint32_t)volume->value * l->getMaxValue()) / 
+	    (uint32_t)AUDIO_VOL_MAX + l->getMinValue();
+	  uint32_t ovalue = 
+	    (uint64_t)AUDIO_VOL_MAX * (l->getIntValue() - l->getMinValue())
+	    / l->getMaxValue();
+
+	  if ((int32_t)v == l->getIntValue())
+	    v = volume->value > ovalue ? v + 1 : 
+	      volume->value < ovalue ? v - 1 : v;
+	    
 	  l->setValue(v);
-	  DEBUG("value=%u corrected=%llu\n", volume->value, v);
+	  DEBUG("value=%u corrected=%u\n", volume->value, v);
 	} else {
 	  result += 
 	    (uint64_t)AUDIO_VOL_MAX * (l->getIntValue() - l->getMinValue())
 	    / l->getMaxValue();
-	  DEBUG("value=%u result=%llu\n", (int)l->getIntValue(), result);
+	  DEBUG("value=%u result=%u\n", (int)l->getIntValue(), result);
 	}
       } else if (c && c->getType() == kIOAudioControlTypeToggle &&
 	  c->getSubType() == kIOAudioToggleControlSubTypeMute &&
@@ -560,8 +545,25 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
     break;
   }
 
+  case FIONBIO:
+    DEBUG("FIONBIO\n");
+    this->blocking = *(int *)data;
+    break;
+
+  case FIOSETOWN:
+    DEBUG("FIOSETOWN\n");
+    owner = *(int *)data;
+    break;
+
+  case FIOGETOWN: {
+    DEBUG("FIOGETOWN\n");
+    *(int *)data = this->getOwner();
+    break;
+  }
+
   default:
-    DEBUG("!?\n");
+    IOLog("%s recieved an nrecognised ioctl (%c,%u)\n", this->getName(),
+	  (int)IOCGROUP(cmd), (int)cmd & 0xf);
     r = ENOTTY;
   }
 
@@ -571,4 +573,13 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 const char *ODAudioBSDClient::getDeviceBase() const
 {
   return "dsp";
+}
+
+uid_t ODAudioBSDClient::getOwner() const
+{
+  /* declared and maintained by the VFS subsystem */
+  extern uid_t console_user;
+
+
+  return owner == -1 ? console_user : owner;
 }

@@ -47,24 +47,26 @@ class ODAudioBSDClient : public ODBSDClient
   OSDeclareAbstractStructors(ODAudioBSDClient);
 
  private:
-  static int ninitialised;
-  virtual const char *statusString();
+  
+  const char *statusString();
 
-  virtual uint64_t bytesToNanos(uint64_t bytes);
-  virtual uint64_t bytesToFrames(uint64_t bytes);
-  virtual uint64_t nanosToBytes(uint64_t nanos);
-  virtual uint64_t framesToBytes(uint64_t frames);
+  int64_t bytesToNanos(int64_t bytes);
+  int64_t bytesToFrames(int64_t bytes);
+  int64_t nanosToBytes(int64_t nanos);
+  int64_t framesToBytes(int64_t frames);
 
-  virtual AbsoluteTime getTime();
-  virtual unsigned calculateDelay(AbsoluteTime now);
+  AbsoluteTime getTime();
+  unsigned getDelay(AbsoluteTime now);
+  int64_t getLatency();
+  int64_t getBufferedFrames();
 
  protected:
 
   /* STATE-RELATED FIELDS */
 
   bool is_open;
-  UInt32 loopcount;
-  AbsoluteTime next_call;
+  bool blocking;
+  int owner;
 
   /* IOAUDIOFAMILY-RELATED FIELDS */
 
@@ -75,10 +77,19 @@ class ODAudioBSDClient : public ODBSDClient
     IOAudioControl *builtin, *external, *spdif, *boot;
   } outputcontrols;
 
+  UInt32 loopcount;
+  AbsoluteTime next_call;
+
+  /* engine control functions */
+  virtual void reset();
+
+  /* ODBSDClient overrides */
   virtual const char *getDeviceBase() const;
+  virtual uid_t getOwner() const;
 
  public:
 
+  /* ODBSDClient overrides */
   virtual int open(int flags, int devtype, struct proc *pp);
   virtual int close(int flags, int mode, struct proc *pp);
   virtual int write(struct uio *uio, int ioflag);

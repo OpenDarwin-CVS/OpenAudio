@@ -34,7 +34,7 @@ reload: $(KPREFIX)/$(notdir $(TARGET))
 $(PRODUCT): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 
-$(TARGET): $(PRODUCT)
+$(TARGET): $(PRODUCT) Info.plist
 	$(RM) $@
 	$(INSTALL) -d $@/Contents/MacOS
 	$(INSTALL) -m 644 Info.plist $@/Contents

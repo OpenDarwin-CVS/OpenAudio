@@ -43,12 +43,12 @@
 
 typedef struct audio_volume {
   /* kIOAudioControlChannelID */
-  uint16_t value;
+  uint8_t value;
   uint8_t id;
   bool muted : 1;
 } audio_volume_t;
 
-#define AUDIO_VOL_MAX 65535
+#define AUDIO_VOL_MAX 255
 
 /* GENERAL AUDIO */
 
@@ -57,13 +57,12 @@ typedef struct audio_volume {
 #define AUDIOBEEP _IO('A', 1)
 #endif
 
-/* flush audio device */
-#ifdef UNIMPLEMENTED
-#define AUDIOFLUSH _IO('A', 2)
-#endif
+/* return the amount of nanoseconds it will take for a sample written
+   now to be played */
+#define AUDIOLATENCY _IOR('A', 2, uint64_t)
 
 /* get latency in nanoseconds */
-#define AUDIOLATENCY _IOR('A', 3, int32_t)
+#define AUDIOGETDELAY _IOR('A', 3, uint32_t)
 
 /* AUDIO FORMAT */
 

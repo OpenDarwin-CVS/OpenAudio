@@ -115,7 +115,8 @@ bool ODBSDClient::start(IOService *provider)
 
   clients[this->minor] = this;
   clients[this->minor]->node = devfs_make_node(makedev(major, this->minor),
-					       DEVFS_CHAR, UID_ROOT, GID_WHEEL, 
+					       DEVFS_CHAR,
+					       this->getOwner(), GID_WHEEL, 
 					       UMASK, name, this->minor);
   if (!clients[this->minor]->node) return false;
   
