@@ -1,10 +1,8 @@
 #*- makefile -*-
 
-PRODUCT=ODAudioSystem
-
 SRCROOT=$(CURDIR)/..
 
-TARGET=$(SRCROOT)/$(PRODUCT).kext
+TARGET=$(KEXT)
 OBJS=module.o ODBSDClient.o ODAudioBSDClient.o
 SRCS=$(shell for file in $(OBJS); do for ext in .cc .cpp .mm .c .m; do \
 		test -e $${file%.o}$$ext && echo $${file%%.o}$$ext; \
@@ -12,7 +10,7 @@ SRCS=$(shell for file in $(OBJS); do for ext in .cc .cpp .mm .c .m; do \
 
 include ../config.mak
 
-.PHONY: .depend clean dist all load unload reload
+.PHONY: .depend
 
 .c.o:
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
@@ -31,22 +29,11 @@ dist: all
 	$(CC) $(OBJS) $(LDFLAGS) -o $(TARGET)/Contents/MacOS/$(PRODUCT)
 	$(CP) Info.plist $(TARGET)/Contents
 
-load: dist
-	kextload -t -s $(TARGET)/Contents/Resources $(TARGET)
-
-unload: dist
-	kextunload $(TARGET)
-
-reload: unload load
-
-release:
-	sudo $(MAKE) clean dist \
-	ARCHFLAGS="-arch ppc -arch i386" CPPFLAGS="$(CPPFLAGS) -DNDEBUG"
-
 clean:
 	$(RM) $(OBJS) $(PRODUCT) $(PRODUCT).plist $(TARGET) .depend
 
 .depend:
-	gcc -MM $(CPPFLAGS) $(SRCS) > .depend
+	$(RM) $@
+	$(CC) -MM $(CPPFLAGS) $(SRCS) > $@
 
 -include .depend

@@ -37,6 +37,8 @@
 #include <IOKit/audio/IOAudioTypes.h>
 #include <IOKit/audio/IOAudioEngine.h>
 #include <IOKit/audio/IOAudioStream.h>
+#include <IOKit/audio/IOAudioSelectorControl.h>
+#include <IOKit/audio/IOAudioLevelControl.h>
 
 #define kODAudioBSDClientTypeKey "ODAudioBSDClientType"
 
@@ -54,6 +56,7 @@ class ODAudioBSDClient : public ODBSDClient
   virtual uint64_t framesToBytes(uint64_t frames);
 
   virtual AbsoluteTime getTime();
+  virtual unsigned calculateDelay(AbsoluteTime now);
 
  protected:
 
@@ -67,6 +70,12 @@ class ODAudioBSDClient : public ODBSDClient
 
   IOAudioEngine *engine;
   IOAudioStream *outputstream;
+
+  IOAudioSelectorControl *outputselector;
+
+  struct {
+    IOAudioControl *builtin, *external, *spdif, *boot;
+  } outputcontrols;
 
   virtual const char *getDeviceBase() const;
 

@@ -43,7 +43,7 @@
 
 #include <IOKit/IOLib.h>
 
-#include "audio/audio_defines.h"
+#include "../include/defines.h"
 
 OSDefineMetaClassAndAbstractStructors(ODBSDClient, IOService);
 

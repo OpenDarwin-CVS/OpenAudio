@@ -32,13 +32,13 @@
 
 #include "audio_util.h"
 
-#include "audio/audio_ioctl.h"
+#include "../include/audioio.h"
 
+#include <IOKit/IOLib.h>
 #include <IOKit/audio/IOAudioEngine.h>
 #include <IOKit/audio/IOAudioDefines.h>
 #include <IOKit/audio/IOAudioStream.h>
 #include <IOKit/audio/IOAudioControl.h>
-#include <IOKit/IOWorkLoop.h>
 
 extern "C" {
 #include <sys/param.h>
@@ -53,6 +53,11 @@ extern "C" {
 OSDefineMetaClassAndStructors(ODAudioBSDClient, ODBSDClient);
 static int nwrites = 0;
 
+static bool check_channel_id(IOAudioControl *c, int id)
+{
+  return id >= 0 && 
+    (id == kIOAudioControlChannelIDAll || (unsigned)id == c->getChannelID());
+}
 
 const char *ODAudioBSDClient::statusString()
 {
@@ -192,11 +197,10 @@ bool ODAudioBSDClient::start(IOService *provider)
 
     OSIterator *i =
       OSCollectionIterator::withCollection(engine->defaultAudioControls);
-    
+
     for (unsigned n = 0; n < engine->defaultAudioControls->getCount(); n++) {
       IOAudioControl *c = CAST(IOAudioControl, i->getNextObject());
-
-      unsigned t = c->getType(), s = c->getSubType(), u = c->getUsage();
+      uint32_t t = c->getType(), s = c->getSubType(), u = c->getUsage();
 
       IOLog("%s:%u type=%.4s subtype=%.4s usage=%.4s\n", c->getName(),
 	    n, (char *)&t, (char *)&s, (char *)&u);
@@ -243,6 +247,49 @@ int ODAudioBSDClient::close(int flags, int mode, struct proc *pp)
   return 0;
 }
 
+unsigned ODAudioBSDClient::calculateDelay(AbsoluteTime now)
+{
+  DEBUG_FUNCTION();
+
+  uint64_t t1, t2;
+    
+  absolutetime_to_nanoseconds(next_call, &t1);
+  absolutetime_to_nanoseconds(now, &t2);
+
+  if (t2 < t1) {
+    unsigned delay = t1 - t2;
+    int frame_diff = 
+      (engine->audioEngineStopPosition.fLoopCount *
+       engine->numSampleFramesPerBuffer +
+       engine->audioEngineStopPosition.fSampleFrame) - 
+      (engine->getStatus()->fCurrentLoopCount * 
+       engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
+
+    if (frame_diff <= 0) {
+      /* The end position has been overtaken by the current frame.
+       * This means we're behind and shouldn't wait at all */
+      VERBOSE_DEBUG("RACE CONDITION DETECTED: %u %u off\n",
+		    nwrites, -frame_diff);
+      delay = 0;
+    } else if (frame_diff < LATENCY_FRAMES) {
+      /* The end position is less than LATENCY_FRAMES ahead of the
+       * current frame. LATENCY_FRAMES is the safe value we chose to
+       * avoid skipping. Decrease the delay to ensure the latency. */
+      unsigned correction = 
+	bytesToNanos(
+		     framesToBytes(LATENCY_FRAMES - frame_diff));
+      VERBOSE_DEBUG("RACE CONDITION EMMINENT: %u %u off %u corrected\n",
+		    nwrites, (unsigned)frame_diff, correction);
+      delay -= (delay > correction) ? correction : delay;
+    }
+
+    return delay;
+  } else {
+    VERBOSE_DEBUG("NOT SLEEPING\n");
+    return 0;
+  }
+}
+
 int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 {
   DEBUG_FUNCTION();
@@ -255,47 +302,10 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 
   /* delay until next_call */
   {
-    uint64_t t1, t2;
-    
-    absolutetime_to_nanoseconds(next_call, &t1);
-    absolutetime_to_nanoseconds(now, &t2);
+    unsigned delay = this->calculateDelay(now);
 
-    if (t2 < t1) {
-      unsigned delay = t1 - t2;
-      int frame_diff = 
-	(endpos.fLoopCount * engine->numSampleFramesPerBuffer +
-	 endpos.fSampleFrame) - 
-	(engine->getStatus()->fCurrentLoopCount * 
-	 engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
-
-      if (frame_diff <= 0) {
-	/* The end position has been overtaken by the current frame.
-	 * This means we're behind and shouldn't wait at all */
-	VERBOSE_DEBUG("RACE CONDITION DETECTED: %u %u off\n",
-		      nwrites, -frame_diff);
-	delay = 0;
-      } else if (frame_diff < LATENCY_FRAMES) {
-	/* The end position is less than LATENCY_FRAMES ahead of the
-	 * current frame. LATENCY_FRAMES is the safe value we chose to
-	 * avoid skipping. Decrease the delay to ensure the latency. */
-	unsigned correction = 
-	  bytesToNanos(
-		       framesToBytes(LATENCY_FRAMES - frame_diff));
-	VERBOSE_DEBUG("RACE CONDITION EMMINENT: %u %u off %u corrected\n",
-		      nwrites, (unsigned)frame_diff, correction);
-	delay -= (delay > correction) ? correction : delay;
-      }
-
-#if 1
-      IOSleep(delay / 1000000);
-      IODelay((delay / 1000) % 1000);
-#else
-      VERBOSE_DEBUG("%u \n", (unsigned)(tick/delay));
-      //tsleep(this, 0, "audio", (t1 - t2) / 1000);
-#endif
-    } else {
-      VERBOSE_DEBUG("NOT SLEEPING\n");
-    }
+    IOSleep(delay / 1000000);
+    IODelay((delay / 1000) % 1000);
   }
 
   /* The audio engine is stopped. This means that a) there is nothing
@@ -415,7 +425,7 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
   DEBUG_FUNCTION();
 
-  int r = kIOReturnSuccess;
+  int r = 0;
 
   switch (cmd) {
   case AUDIOGETOFMT: {
@@ -433,11 +443,72 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
     r = outputstream->setFormat((IOAudioStreamFormat *)data) ? EINVAL : r;
     break;
 
-  case AUDIOGETIFACES:
+  case AUDIOLATENCY: {
+    DEBUG("AUDIOSETOFMT\n");
+    *((int32_t *)data) = calculateDelay(getTime());
+    break;
+  }        
+
+  case AUDIOGETOPORT:
+    if (!outputselector)
+      r = ENOTTY;
+    else
+      *((int32_t *)data) = outputselector->getIntValue();
+    break;
+
+  case AUDIOSETOPORT:
+    if (!outputselector) {
+      r = ENOTTY;
+    } else {
+      int32_t v = *((int32_t *)data);
+      
+      if (!outputselector->valueExists(v))
+	r = EINVAL;
+      else
+	outputselector->setValue(v);
+
+      *((int32_t *)data) = outputselector->getIntValue();
+
+      if (*((int32_t *)data) != v) r = EINVAL;
+    }
+    break;
+
   case AUDIOGETVOL:
-  case AUDIOSETVOL:
-  case AUDIOGETMUTE:
-  case AUDIOSETMUTE:
+  case AUDIOSETVOL: {
+    audio_volume_t *volume = (audio_volume_t *)data;
+    unsigned nfound = 0;
+    int64_t result = 0;
+    OSIterator *i =
+      OSCollectionIterator::withCollection(engine->defaultAudioControls);
+
+    for (unsigned n = 0; n < engine->defaultAudioControls->getCount(); n++) {
+      IOAudioControl *c = CAST(IOAudioControl, i->getNextObject());
+
+      if (c && c->getType() == kIOAudioControlTypeLevel &&
+	  c->getSubType() == kIOAudioLevelControlSubTypeVolume &&
+	  c->getUsage() == kIOAudioControlUsageOutput && 
+	  check_channel_id(c, volume->id)) {
+	nfound++;
+
+	if (cmd == AUDIOSETVOL) {
+	  /* FIXME: handle various ranges */
+	  c->setValue(volume->value);
+	}
+
+	result += c->getIntValue();
+      }
+
+      if (!nfound)
+	r = EINVAL;
+      else
+	volume->value = result / nfound;
+
+      VERBOSE_DEBUG("%s:%u type=%.4s subtype=%.4s usage=%.4s\n", c->getName(),
+		    n, (char *)&t, (char *)&s, (char *)&u);
+
+    }
+  }
+
   default:
     DEBUG("!?\n");
     r = ENOTTY;

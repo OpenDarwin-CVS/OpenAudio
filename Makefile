@@ -2,16 +2,30 @@
 include config.mak
 
 SUBDIRS=kext
-SUBTARGETS=all dist clean
 
 SRCROOT=$(CURDIR)
 
-all: $(SUBDIRS)(all)
-dist: $(SUBDIRS)(dist)
-clean: $(SUBDIRS)(clean)
-installhdrs: $(SUBDIRS)(installhdrs)
-
-$(SUBDIRS)($(SUBTARGETS)):
-	$(MAKE) -C $@ $%
+all:
+	@for i in $(SUBDIRS); do $(MAKE) -C $$i all; done
 
 clean:
+	@for i in $(SUBDIRS); do $(MAKE) -C $$i clean; done
+
+dist:
+	@for i in $(SUBDIRS); do $(MAKE) -C $$i dist; done
+
+release:
+	sudo $(MAKE) clean dist RELEASE=
+
+install:
+	$(INSTALL) $(KEXT) $(KPREFIX)
+	$(INSTALL) $(FRAMEWORK) $(FPREFIX)
+
+
+load: dist
+	kextload -t -s $(KEXT)/Contents/Resources $(KEXT)
+
+unload: dist
+	kextunload $(KEXT)
+
+reload: unload load

@@ -41,13 +41,12 @@
 
 /* TYPES */
 
-typedef struct audio_interface {
-  bool internal : 1, external : 1, spdif : 1;
-} audio_interface_t;
-
 typedef struct audio_volume {
-  audio_interface_t ifaces;
-  unsigned short value;
+  /* kIOAudioControlChannelID */
+  uint32_t value;
+  uint8_t id;
+  bool muted : 1;
+  int padding : 31;
 } audio_volume_t;
 
 /* GENERAL AUDIO */
@@ -63,9 +62,7 @@ typedef struct audio_volume {
 #endif
 
 /* get latency in nanoseconds */
-#ifdef UNIMPLEMENTED
-#define AUDIOLATENCY _IOR('A', 3, unsigned)
-#endif
+#define AUDIOLATENCY _IOR('A', 3, int32_t)
 
 /* AUDIO FORMAT */
 
@@ -87,19 +84,18 @@ typedef struct audio_volume {
 
 /* VOLUME CONTROL */
 
-/* get available output interfaces */
-#define AUDIOGETIFACES _IOR('A', 21, audio_interface_t)
-
-/* get volume */
-#define AUDIOGETVOL _IORW('A', 22, audio_volume_t)
+/* send channelid - get volume */
+#define AUDIOGETVOL _IOWR('A', 22, audio_volume_t)
 
 /* set volume */
-#define AUDIOSETVOL _IOR('A', 22, audio_volume_t)
+#define AUDIOSETVOL _IOW('A', 22, audio_volume_t)
 
-/* get muted */
-#define AUDIOGETMUTE _IOW('A', 23, audio_interface_t)
+/* get output port
+   one of IOAudioTypes::kIOAudioSelectorControlSelectionValue* */
+#define AUDIOGETOPORT _IOR('A', 24, int32_t)
 
-/* set muted */
-#define AUDIOSETMUTE _IOR('A', 23, audio_interface_t)
+/* select output port
+   one of IOAudioTypes::kIOAudioSelectorControlSelectionValue* */
+#define AUDIOSETOPORT _IOWR('A', 24, int32_t)
 
 #endif /* !_AUDIO_IOCTL_H_ */

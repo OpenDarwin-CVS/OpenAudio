@@ -50,7 +50,7 @@
 #define DEBUG_WAIT(...)				\
   do {						\
     IOLog(__VA_ARGS__);				\
-    IOSleep(500);				\
+    IOSleep(1000);				\
   } while (0);
 #else
 #define DEBUG(...) (void)0
