@@ -5,7 +5,7 @@
 #
 
 SUBDIRS=framework kext util
-SUBTARGETS=all clean dist install
+SUBTARGETS=all clean dist install uninstall
 
 $(SUBTARGETS):
 	$(foreach i,$(SUBDIRS),$(MAKE) -C $i $@ &&) :

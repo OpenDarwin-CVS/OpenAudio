@@ -5,7 +5,7 @@
 #
 
 SRCROOT=$(CURDIR)/..
-BINS=str2plist bswap selout setvol mute
+BINS=str2plist bswap selout setvol mute mix
 
 include $(SRCROOT)/config.mak
 
@@ -17,6 +17,9 @@ clean:
 	$(RM) $(BINS) $(BINS:%=%.o) $(BINS:%=$(SRCROOT)/%)
 
 install: $(BINS:%=$(EPREFIX)/%)
+
+uninstall:
+	$(RM) $(BINS:%=$(EPREFIX)/%)
 
 $(EPREFIX)/%: $(SRCROOT)/%
 	$(INSTALL) $< $(EPREFIX)

@@ -36,8 +36,8 @@ else
 
 CPPFLAGS=-W -Wall -Werror -Wno-unused-parameter
 LDFLAGS=-framework CoreFoundation $(ARCHFLAGS)
-CFLAGS=-std=c99 -pedantic $(ARCHFLAGS)
-CXXFLAGS=$(ARCHFLAGS)
+CFLAGS=-std=c99 -pedantic -O3 $(ARCHFLAGS)
+CXXFLAGS=-O3 $(ARCHFLAGS)
 
 endif
 

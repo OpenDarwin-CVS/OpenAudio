@@ -20,6 +20,9 @@ dist: $(TARGET)
 
 install: $(FPREFIX)/$(notdir $(TARGET))
 
+uninstall:
+	$(RM) $(FPREFIX)/$(notdir $(TARGET))
+
 clean:
 	$(RM) $(OBJS) $(PRODUCT) $(TARGET) .depend
 

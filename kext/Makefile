@@ -24,6 +24,9 @@ clean:
 
 install: $(KPREFIX)/$(notdir $(TARGET))
 
+uninstall:
+	$(RM) $(KPREFIX)/$(notdir $(TARGET))
+
 .depend: $(SRCS) Makefile
 	$(RM) $@
 	$(CC) -M $(CPPFLAGS) $(SRCS) > $@
@@ -35,7 +38,7 @@ $(PRODUCT): $(OBJS)
 
 $(TARGET): $(PRODUCT)
 	$(RM) $@
-	$(INSTALL) -d $@/Contents/MacOS $@/Contents/Resources
+	$(INSTALL) -d $@/Contents/MacOS
 	$(INSTALL) -m 644 Info.plist $@/Contents
 	$(INSTALL) -m 644 $(PRODUCT) $@/Contents/MacOS
 
