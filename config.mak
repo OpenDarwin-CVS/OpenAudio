@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 PRODUCT=DarwinSound
-OBJS=ds_module.o ds_init.o
+OBJS=ds_module.o ds_init.o ODAudioBSDClient.o
 
 MKDIR=mkdir -p
 STR2PLIST=util/str2plist
@@ -19,7 +19,7 @@ ARCHFLAGS=-arch ppc #-arch i386
 
 CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers \
 	-I/System/Library/Frameworks/Kernel.framework/Headers/bsd \
-	-DKERNEL -DKERNEL_PRIVATE -Wall -W -Wno-unused-parameter \
+	-DKERNEL -DKERNEL_PRIVATE -Wall -W -Werror -Wno-unused-parameter \
 	-DDARWIN_MAJOR=$(OSMAJOR) -DDARWIN_MINOR=$(OSMINOR)
 
 KFLAGS=-no-cpp-precomp -static -fno-common -finline -fno-keep-inline-functions \
@@ -31,5 +31,8 @@ CXXFLAGS=$(KFLAGS) -fapple-kext -fno-rtti -fno-exceptions -fcheck-new \
 
 CFLAGS=$(KFLAGS) -fno-builtin
 
-LDFLAGS=$(ARCHFLAGS) -static -nostdlib -r -lcc_kext -lkmodc++ -lkmod
+LDFLAGS=$(ARCHFLAGS) -static -nostdlib -r -lcc_kext -g -lkmodc++ -lkmod
 
+SRCS=$(shell for file in $(OBJS); do for ext in .cc .cpp .mm .c .m; do \
+		test -e $${file%.o}$$ext && echo $${file%%.o}$$ext; \
+	done; done)

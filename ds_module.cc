@@ -27,10 +27,8 @@
 
 #include "ds_module.h"
 
-/* HACK: workaround a typo in a kernel header */
-#if DARWIN_MAJOR < 7
-#define devfs_link devfs_make_link
-#endif
+#include "ds_util.h"
+#include "ODAudioBSDClient.h"
 
 extern "C" {
 #include <sys/cdefs.h>
@@ -48,60 +46,21 @@ extern "C" {
 
 #include <libkern/c++/OSDictionary.h>
 #include <IOKit/IOLib.h>
+#include <IOKit/IOWorkLoop.h>
 
 #include <IOKit/audio/IOAudioDefines.h>
 #include <IOKit/audio/IOAudioEngine.h>
 #include <IOKit/audio/IOAudioStream.h>
 
-#define CAST(type, instance)			\
-  (type *)(instance)->metaCast(#type)
-
-/* A struct describing which functions will get invoked for certain
- * actions.
- */
-static struct cdevsw ds_cdevsw = {
-  ds_open,         /* open */
-  ds_close,        /* close */
-  eno_rdwrt,       /* read */
-  ds_write,        /* write */
-  eno_ioctl,       /* ioctl */
-  eno_stop,        /* stop */
-  eno_reset,       /* reset */
-  NULL,            /* tty's */
-  eno_select,      /* select */
-  eno_mmap,        /* mmap */
-  eno_strat,       /* strategy */
-  eno_getc,        /* getc */
-  eno_putc,        /* putc */
-  0                /* type */
-};
-
 /* Used to detect whether we've already been initialized */
 static int ds_installed = 0;
-static int opened = 0;
+static ODAudioBSDClient **clients;
+static int nclients;
 
-static IOAudioEngine **engines;
-static void **device_nodes;
-static int nengines;
-
-static const char *status_to_string(const IOAudioEngineState s)
+kern_return_t ds_start(kmod_info_t * ki, void * d)
 {
-  switch (s) {
-  case kIOAudioEngineStopped:
-    return "stopped";
-  case kIOAudioEngineRunning:
-    return "running";
-  case kIOAudioEnginePaused:
-    return "paused";
-  case kIOAudioEngineResumed:
-    return "resumed";
-  default:
-    return "weird";
-  }
-}
+  DEBUG_FUNCTION();
 
-extern "C" kern_return_t ds_start(kmod_info_t * ki, void * d)
-{
   if( ds_installed ) {
     /* already registered, so don't register again */
     printf("%s: already loaded!\n", __FUNCTION__);
@@ -119,53 +78,20 @@ extern "C" kern_return_t ds_start(kmod_info_t * ki, void * d)
     printf("%s: no audio engines preset!\n", __FUNCTION__);
     return KERN_FAILURE;
   } else {
-    /* create the character device */
-    int ret = cdevsw_add(DS_MAJOR, &ds_cdevsw);
-
-    if(ret < 0) {
-      dict->release();
-      i->release();
-      printf("%s: failed to allocate a major number!\n", __FUNCTION__);
-      return KERN_FAILURE;
-    }
-
-    while (i->getNextObject()) nengines++;
+    while (i->getNextObject()) nclients++;
     i->reset();
 
-    engines = IONew(IOAudioEngine *, nengines);
-    device_nodes = IONew(void *, nengines);
+    clients = IONew(ODAudioBSDClient *, nclients);
 
-    for (int n = 0; n < nengines; n++) {
-      engines[n] = CAST(IOAudioEngine, i->getNextObject());
-      device_nodes[n] = devfs_make_node(makedev(ret, n), DEVFS_CHAR,
-					UID_ROOT, GID_WHEEL, 
-					0600, "dsp%x", n);
-    
-      printf("Found a %s IOAudioEngine %s!\n",
-	     status_to_string(engines[n]->getState()), engines[n]->getName());
+    for (int n = 0; n < nclients; n++) {
+      IOAudioEngine *e = CAST(IOAudioEngine, i->getNextObject());
+      clients[n] = ODAudioBSDClient::withAudioEngine(e, n);
 
-      if (engines[n]->outputStreams) {
-	printf("\tEngine has %u output streams!\n",
-	       engines[n]->outputStreams->getCount());
-	IOAudioStream *outputstream =
-	  CAST(IOAudioStream, engines[n]->outputStreams->getCount() > 0 ?
-	       engines[n]->outputStreams->getObject(0) : NULL);
-
-	if (outputstream)
-	  printf("\tOutput stream has %u IO functions\n",
-		 (unsigned)outputstream->numIOFunctions);
-      } else {
-	printf("\tEngine has no output streams!\n");
+      if (!clients[n]) {
+	IOLog("Failed to initialise client #%u!\n", n);
+	nclients--;
       }
-
-      if (engines[n]->inputStreams)
-	printf("\tEngine has %u input streams!\n", engines[n]->inputStreams->getCount());
-      else
-	printf("\tEngine has no input streams!\n");
-
     }
-
-    devfs_make_link(device_nodes[0], "dsp");
   }
        
   if (dict) dict->release();
@@ -176,91 +102,39 @@ extern "C" kern_return_t ds_start(kmod_info_t * ki, void * d)
 
 kern_return_t ds_stop(kmod_info_t * ki, void * d)
 {
-  int ret;
-  ret = cdevsw_remove(DS_MAJOR, &ds_cdevsw);
-  if( ret < 0 ) {
-    printf("%s: failed to remove character device!\n", __FUNCTION__);
-    return KERN_FAILURE;
-  }
+  DEBUG_FUNCTION();
 
-  for (int n = 0; n < nengines; n++)
-    devfs_remove(device_nodes[n]);
+  for (int n = 0; n < nclients; n++)
+    if (clients[n]) clients[n]->release();
 
-  IODelete(engines, IOAudioEngine *, nengines);
-  IODelete(device_nodes, void *, nengines);
+  DEBUG_WAIT("deleting clients\n");
+  IODelete(clients, ODAudioBSDClient *, nclients);
 
   ds_installed = 0;
-  nengines = 0;
+  nclients = 0;
 
   return KERN_SUCCESS;
 }
 
 int ds_open(dev_t dev, int flags, int devtype, struct proc *pp)
 {
-  if (!opened) {
-    opened = 1;
-  } else {
-    printf("%s entered: device already opened\n", __FUNCTION__);
-    return EACCES;
-  }
+  DEBUG_FUNCTION();
 
-  engines[minor(dev)]->startAudioEngine();
-
-  printf("%s entered: %s is now %s\n", __FUNCTION__, engines[minor(dev)]->getName(),
-	 status_to_string(engines[minor(dev)]->getState()));
-  
-  return 0;
+  return clients[minor(dev)]->open() ? 0 : EACCES;
 }
 
 int ds_close(dev_t dev, int flags, int mode, struct proc *pp)
 {
-  printf("%s entered\n", __FUNCTION__);
+  DEBUG_FUNCTION();
 
-  engines[minor(dev)]->stopAudioEngine();
-
-  opened = 0;
+  clients[minor(dev)]->close();
 
   return 0;
 }
 
 int ds_write(dev_t dev, struct uio *uio, int ioflag)
 {
-  int n = minor(dev);
-  IOAudioEngine *engine = engines[n];
+  DEBUG_FUNCTION();
 
-  /* debug output */
-  switch (uio->uio_segflg) {
-  case UIO_USERSPACE:
-  case UIO_USERISPACE:
-    break;
-  case UIO_SYSSPACE:
-  case UIO_PHYS_USERSPACE:
-    return EFAULT;
-  }
-
-  if (engine->outputStreams && engine->outputStreams->getCount() > 0) {
-    IOAudioStream *outputstream = 
-      CAST(IOAudioStream, engine->outputStreams->getObject(0));
-    int bytes = MIN((long)outputstream->getSampleBufferSize(), (long)uio->uio_resid);
-    char buf[bytes];
-    int r = uiomove((caddr_t)buf, bytes, uio);
-
-    IOReturn ior = engine->mixOutputSamples((char *)buf,
-					    outputstream->getMixBuffer(),
-					    0, 1,
-					    &outputstream->format,
-					    outputstream);
-
-    if (ior != kIOReturnSuccess) {
-      printf("%s: MIX FAILED\n", __FUNCTION__);
-    } else {
-      printf("%u written to a %s %s: %u\n", bytes, 
-	     status_to_string(engine->getState()),
-	     engine->getName(), r);
-    }
-
-    return r;
-  } else {
-    return EIO;
-  }
+  return clients[minor(dev)]->write(uio);
 }

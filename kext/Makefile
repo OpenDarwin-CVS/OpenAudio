@@ -4,6 +4,8 @@ include config.mak
 
 .SUFFIXES: .plist .strings
 
+.PHONY: .depend clean dist all load unload
+
 .c.o:
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
@@ -42,6 +44,6 @@ $(PRODUCT).kext/Contents/MacOS/$(PRODUCT): \
 	chmod -R 644 $(PRODUCT).kext
 
 .depend:
-	gcc -MM $(CPPFLAGS) `find . -name \*.c -o -name \*.cc` > .depend
+	gcc -MM $(CPPFLAGS) $(SRCS) > .depend
 
 -include .depend

@@ -3,7 +3,7 @@
 
 #include <mach/mach_types.h>
 
-KMOD_EXPLICIT_DECL(dk.danchr.darwinsound,  "0.1",
+KMOD_EXPLICIT_DECL(org.opendarwin.darwinsound,  "0.1",
 		   ds_start, ds_stop)
 
 __private_extern__ kmod_start_func_t *_realmain = 0;

@@ -1,7 +1,7 @@
 // !$*UTF8*$! -*- mode: sh; coding: utf-8; -*-
 
 CFBundleExecutable = "DarwinSound";
-CFBundleIdentifier = "dk.danchr.darwinsound";
+CFBundleIdentifier = "org.opendarwin.darwinsound";
 CFBundleName = "DarwinSound";
 CFBundleVersion = "0.1";
 CFBundleShortVersionString = "0.1";
