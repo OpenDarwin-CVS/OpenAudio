@@ -52,6 +52,10 @@ extern "C" {
 
 #define super ODBSDClient
 
+/* this definition toggles a hack which makes us assume complete
+   control over the audio engine */
+#define NICE_LOCKS 0
+
 OSDefineMetaClassAndStructors(ODAudioBSDClient, ODBSDClient);
 
 static int nwrites = 0;
@@ -372,7 +376,7 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 #if NICE_LOCKS
   /* HACK: by locking the audio stream when sleeping, we ensure that
      it isn't stopped. */
-  //IORecursiveLockUnlock(outputstream->streamIOLock);
+  IORecursiveLockUnlock(outputstream->streamIOLock);
 #endif
 
   /* delay until next_call */
@@ -382,7 +386,7 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
   }
 
 #if NICE_LOCKS
-  //IORecursiveLockLock(outputstream->streamIOLock);
+  IORecursiveLockLock(outputstream->streamIOLock);
 #endif
 
   /* begin calculating the next delay */
