@@ -30,7 +30,7 @@
 
 #include "ODBSDClient.h"
 
-#include "ds_util.h"
+#include "audio_util.h"
 
 #include <sys/cdefs.h>
 #include <sys/types.h>

@@ -2,7 +2,7 @@
 # -*- Makefile -*-
 
 PRODUCT=ODAudioSystem
-OBJS=ds_init.o ODBSDClient.o ODAudioBSDClient.o
+OBJS=module.o ODBSDClient.o ODAudioBSDClient.o
 
 MKDIR=mkdir -p
 STR2PLIST=util/str2plist

@@ -30,7 +30,7 @@
 
 #include "ODAudioBSDClient.h"
 
-#include "ds_util.h"
+#include "audio_util.h"
 
 #include <IOKit/audio/IOAudioEngine.h>
 #include <IOKit/audio/IOAudioDefines.h>
