@@ -1,0 +1,35 @@
+#!/bin/zsh
+
+if [[ ! -c /dev/dsp ]]; then
+    echo No audio device present!
+    exit 1
+fi
+
+TRAP=false
+BS=16384
+
+while [[ $# > 0 ]]; do
+    trap "TRAP=true" INT
+
+    if [[ $1 == *.aiff && `uname -p` == powerpc ]]; then
+	SWAP=true
+    else
+	SWAP=false
+    fi
+
+    if $SWAP || [[ $1 == *.raw ]]; then
+	echo "Playing $1"
+	dd if="$1" of=/dev/dsp bs=$BS
+    else
+	echo "Playing $1 with byte swapping"
+	dd if="$1" of=/dev/dsp bs=$BS conv=swab
+    fi
+
+    if $TRAP; then
+	TRAP=false
+	sleep 1
+	$TRAP && exit
+    fi
+
+    shift
+done
