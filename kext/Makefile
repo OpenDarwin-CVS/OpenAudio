@@ -13,7 +13,7 @@ SRCS=$(shell for file in $(OBJS); do for ext in .cc .cpp .mm .c .m; do \
 	done; done)
 KERNEL=yes
 
-include ../config.mak
+include $(SRCROOT)/config.mak
 
 all: $(PRODUCT)
 
@@ -22,8 +22,7 @@ dist: $(TARGET)
 clean:
 	$(RM) $(OBJS) $(PRODUCT) $(TARGET) .depend
 
-install: $(TARGET)
-	$(CP) $(TARGET) $(KPREFIX)
+install: $(KPREFIX)/$(notdir $(TARGET))
 
 .depend: $(SRCS) Makefile
 	$(RM) $@
@@ -37,4 +36,13 @@ $(PRODUCT): $(OBJS)
 $(TARGET): $(PRODUCT)
 	$(RM) $@
 	$(INSTALL) -d $@/Contents/MacOS $@/Contents/Resources
-	$(INSTALL) Info.plist $(PRODUCT) $@/Contents
+	$(INSTALL) -m 644 Info.plist $@/Contents
+	$(INSTALL) -m 644 $(PRODUCT) $@/Contents/MacOS
+
+$(KPREFIX)/$(notdir $(TARGET)): $(TARGET)
+	$(RM) $(KPREFIX)/$(notdir $(TARGET))
+	$(CP) $(TARGET) $(KPREFIX)
+
+reload: $(KPREFIX)/$(notdir $(TARGET))
+	kextunload $(KPREFIX)/$(notdir $(TARGET))
+	kextload $(KPREFIX)/$(notdir $(TARGET))

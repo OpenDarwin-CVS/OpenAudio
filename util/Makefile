@@ -7,19 +7,22 @@
 SRCROOT=$(CURDIR)/..
 BINS=str2plist bswap selout
 
-include ../config.mak
+include $(SRCROOT)/config.mak
 
 all: $(BINS)
 
-dist: $(BINS)
-	$(INSTALL) $(BINS) $(SRCROOT)
+dist: $(BINS:%=$(SRCROOT)/%)
 
 clean:
-	$(RM) $(BINS) $(BINS:%=%.o) $(BINS:%=../%)
+	$(RM) $(BINS) $(BINS:%=%.o) $(BINS:%=$(SRCROOT)/%)
 
-install: $(BINS)
-	$(INSTALL) -d
-	$(INSTALL) $(BINS) $(EPREFIX)
+install: $(BINS:%=$(EPREFIX)/%)
+
+$(EPREFIX)/%: $(SRCROOT)/%
+	$(INSTALL) $< $(EPREFIX)
+
+$(SRCROOT)/%: %
+	$(INSTALL) $< $(SRCROOT)
 
 %: %.o
 	$(CC) $(LDFLAGS) $< -o $@
