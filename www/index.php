@@ -28,6 +28,7 @@
   <body>
     <div id="main-block">
       <h1>OpenAudio</h1>
+      <h5>The audio system for OpenDarwin</h5>
       <h3>Description</h3>
       <p>
 	OpenAudio is the OpenDarwin interface to IOAudioFamily.
@@ -44,18 +45,34 @@
       <h3>Status</h3>
       <p>
 	The project is currently in early development, but is
-	known to work on OpenDarwin 6.6. Support for OpenAudio
+	known to work on OpenDarwin 7.2.1. Support for OpenAudio
 	was implemented for MPlayer.
       </p>
+      <p>
+	There are a few outstanding bugs, and after that, the next
+	issue is support for having more than one instance
+	of <code>/dev/dsp</code> open.
+      </p>
       <h3>News</h3>
-      <p><strong>August 14, 2003:</strong> Homepage created. Current status: Broken on systems based on Darwin 7, including OpenDarwin 7.2.1, see bug
+      <p>
+	<strong>14 August, 2004:</strong> OpenAudio now works on
+	OpenDarwin 7.2.1. Hopefully, there'll be a 0.2 release in time
+	for the next OpenDarwin release (7.5.1?).
+      </p>
+      <p>
+	<strong>24 July, 2004:</strong> Homepage created. Current
+	status: Broken on systems based on Darwin 7, including
+	OpenDarwin 7.2.1, see bug
 	<a href="http://www.opendarwin.org/bugzilla/show_bug.cgi?id=2013">
 	  #2013
 	</a>.
       </p>
       <h3>Installation</h3>
       <p>
-	
+	To obtain OpenAudio, check it out from OpenDarwin
+	CVS. The <tt>CVSROOT</tt>
+	is <code>:pserver:anonymous@anoncvs.opendarwin.org:/Volumes/src/cvs/od</code>
+	and the module is <code>OpenAudio</code>.
       </p>
       <ul>
 	<li>
@@ -100,17 +117,17 @@
 	<li>
 	  <a class="mail" href="javascript:send_email('opendarwin.org', 'danchr')">
 	    Dan Christiansen
-	  </a> - founder and core developer
+	  </a> - founder and developer
 	</li>
       </ul>
       <p class="footer">
-	&copy; Dan Villiom Podlaski Christiansen, 
-	<?php echo date("F d Y", getlastmod());?><br />
-	This page is valid 
+	This page is valid
 	<a title="HTML Validator" href="http://validator.w3.org/check/referer">
 	  XHTML 1.1</a>
 	&amp;
-	<a title="CSS Validator" href="http://jigsaw.w3.org/css-validator/check/referer">CSS 2.0</a>.
+	<a title="CSS Validator"
+	href="http://jigsaw.w3.org/css-validator/check/referer">CSS
+	2.0</a>.
       </p>
     </div>
   </body>
