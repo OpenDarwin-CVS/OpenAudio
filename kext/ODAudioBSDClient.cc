@@ -314,9 +314,10 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
   if (engine->getState() != kIOAudioEngineRunning) {
     IOLog("%u: Restarting %s!\n", nwrites, engine->getName());
     this->reset();
+    engine->pauseAudioEngine();
   }
 
-  IOAudioEnginePosition endpos = engine->audioEngineStopPosition;
+  IOAudioEnginePosition *endpos = &engine->audioEngineStopPosition;
   AbsoluteTime now = getTime();
   unsigned buflen = outputstream->getSampleBufferSize();
   void *buf = outputstream->getSampleBuffer();
@@ -327,7 +328,7 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
     return EAGAIN;
 
   /* calculate offset */
-  unsigned offset = framesToBytes(endpos.fSampleFrame);  
+  unsigned offset = framesToBytes(endpos->fSampleFrame);  
   unsigned written = min(chunksize, uio->uio_resid);
   int r;
   int64_t correction = 0;
@@ -336,21 +337,25 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
   if (buflen - offset < written) {
     unsigned avail = buflen - offset;
     r = uiomove((caddr_t)buf + offset, avail, uio);
+    endpos->fSampleFrame = engine->numSampleFramesPerBuffer;
+    engine->performFlush();
     r = uiomove((caddr_t)buf, written - avail, uio);
     offset = written - avail;
-    endpos.fLoopCount++;
+    endpos->fLoopCount++;
   } else {
     r = uiomove((caddr_t)buf + offset, written, uio);
     offset += written;
   }
 
-  endpos.fSampleFrame = endpos.fSampleFrame = bytesToFrames(offset);
+  endpos->fSampleFrame = bytesToFrames(offset);
 
-  engine->audioEngineStopPosition = endpos;
-  engine->stopEngineAtPosition(&engine->audioEngineStopPosition);
+#if 1
+  /* start audio engine */
+  if (engine->getState() != kIOAudioEngineRunning)
+    engine->startAudioEngine();
+#endif
 
   /* delay until next_call */
-  
   if (this->blocking) {
     IOSleep(delay / 1000000);
     IODelay((delay / 1000) % 1000);
@@ -418,10 +423,12 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
   nanoseconds_to_absolutetime(delay, &now);
   ADD_ABSOLUTETIME(&next_call, &now);
 
+#if 0
   if (engine->getState() != kIOAudioEngineRunning) {
     engine->startAudioEngine();
     engine->performFlush();
   }
+#endif
 
   return r;
 }
