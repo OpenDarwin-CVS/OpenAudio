@@ -308,16 +308,17 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 {
   DEBUG_FUNCTION();
 
+  IORecursiveLockLock(outputstream->streamIOLock);
+
   /* The audio engine is stopped. This means that a) there is nothing
    * buffered so we should clear it and b) we should restart it when
    * we copied the audio to it. */
   if (engine->getState() != kIOAudioEngineRunning) {
     IOLog("%u: Restarting %s!\n", nwrites, engine->getName());
     this->reset();
-    engine->pauseAudioEngine();
   }
 
-  IOAudioEnginePosition *endpos = &engine->audioEngineStopPosition;
+  IOAudioEnginePosition endpos = engine->audioEngineStopPosition;
   AbsoluteTime now = getTime();
   unsigned buflen = outputstream->getSampleBufferSize();
   void *buf = outputstream->getSampleBuffer();
@@ -328,7 +329,7 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
     return EAGAIN;
 
   /* calculate offset */
-  unsigned offset = framesToBytes(endpos->fSampleFrame);  
+  unsigned offset = framesToBytes(endpos.fSampleFrame);  
   unsigned written = min(chunksize, uio->uio_resid);
   int r;
   int64_t correction = 0;
@@ -337,29 +338,36 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
   if (buflen - offset < written) {
     unsigned avail = buflen - offset;
     r = uiomove((caddr_t)buf + offset, avail, uio);
-    endpos->fSampleFrame = engine->numSampleFramesPerBuffer;
+    endpos.fSampleFrame = engine->numSampleFramesPerBuffer;
     engine->performFlush();
     r = uiomove((caddr_t)buf, written - avail, uio);
     offset = written - avail;
-    endpos->fLoopCount++;
+    endpos.fLoopCount++;
   } else {
     r = uiomove((caddr_t)buf + offset, written, uio);
     offset += written;
   }
 
-  endpos->fSampleFrame = bytesToFrames(offset);
+  endpos.fSampleFrame = bytesToFrames(offset);
 
 #if 1
   /* start audio engine */
   if (engine->getState() != kIOAudioEngineRunning)
     engine->startAudioEngine();
+  engine->stopEngineAtPosition(&endpos);
 #endif
+
+  /* HACK: by locking the audio stream when sleeping, we ensure that
+     it isn't stopped. */
+  //IORecursiveLockUnlock(outputstream->streamIOLock);
 
   /* delay until next_call */
   if (this->blocking) {
     IOSleep(delay / 1000000);
     IODelay((delay / 1000) % 1000);
   }
+
+  //IORecursiveLockLock(outputstream->streamIOLock);
 
   /* begin calculating the next delay */
   delay = bytesToNanos(written);
@@ -429,7 +437,8 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
     engine->performFlush();
   }
 #endif
-
+  IORecursiveLockUnlock(outputstream->streamIOLock);
+  
   return r;
 }
 
@@ -437,6 +446,8 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
   DEBUG_FUNCTION();
 
+  engine->lockAllStreams();
+  
   int r = 0;
 
   switch (cmd) {
@@ -595,6 +606,8 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
     r = ENOTTY;
   }
 
+  engine->unlockAllStreams();
+
   return r;
 }
 
@@ -607,7 +620,6 @@ uid_t ODAudioBSDClient::getOwner() const
 {
   /* declared and maintained by the VFS subsystem */
   extern uid_t console_user;
-
 
   return owner == -1 ? console_user : owner;
 }
