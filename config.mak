@@ -46,6 +46,7 @@ CXXFLAGS=-O3 $(ARCHFLAGS)
 endif
 
 ifeq ($(RELEASE), yes)
-ARCHFLAGS=-arch ppc -arch i386
+ARCHFLAGS=$(foreach i, ppc i386, \
+	$(shell test -d /usr/libexec/gcc/darwin/$i && echo "-arch $i"))
 CPPFLAGS+=-DNDEBUG
 endif
