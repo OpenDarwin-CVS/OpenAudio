@@ -42,6 +42,8 @@
 
 #define kODAudioBSDClientTypeKey "ODAudioBSDClientType"
 
+#define ODAudioBSDClient org_opendarwin_ODAudioBSDClient
+
 class ODAudioBSDClient : public ODBSDClient
 {
   OSDeclareAbstractStructors(ODAudioBSDClient);

@@ -38,6 +38,8 @@
 
 #include <IOKit/IOService.h>
 
+#define ODBSDClient org_opendarwin_ODBSDClient
+
 class ODBSDClient : public IOService
 {
   OSDeclareAbstractStructors(ODBSDClient);
