@@ -1,6 +1,6 @@
-#*- makefile -*-
+# -*- makefile -*-
 #
-# Copyright (c) 2004, Dan Villiom Podlaski Christiansen
+# Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
 # See the file LICENSE for details
 #
 
@@ -27,11 +27,9 @@ install: $(KPREFIX)/$(notdir $(TARGET))
 uninstall:
 	$(RM) $(KPREFIX)/$(notdir $(TARGET))
 
-.depend: $(SRCS) Makefile
-	$(RM) $@
-	$(CC) -M $(CPPFLAGS) $(SRCS) > $@
-
--include .depend
+reload: $(KPREFIX)/$(notdir $(TARGET))
+	kextunload $(KPREFIX)/$(notdir $(TARGET))
+	kextload $(KPREFIX)/$(notdir $(TARGET))
 
 $(PRODUCT): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
@@ -46,6 +44,8 @@ $(KPREFIX)/$(notdir $(TARGET)): $(TARGET)
 	$(RM) $(KPREFIX)/$(notdir $(TARGET))
 	$(CP) $(TARGET) $(KPREFIX)
 
-reload: $(KPREFIX)/$(notdir $(TARGET))
-	kextunload $(KPREFIX)/$(notdir $(TARGET))
-	kextload $(KPREFIX)/$(notdir $(TARGET))
+.depend: $(SRCS) Makefile
+	$(RM) $@
+	$(CC) -M $(CPPFLAGS) $(SRCS) > $@
+
+-include .depend

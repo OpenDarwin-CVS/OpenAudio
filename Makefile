@@ -1,6 +1,6 @@
-#*- makefile -*-
+# -*- makefile -*-
 #
-# Copyright (c) 2004, Dan Villiom Podlaski Christiansen
+# Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
 # See the file LICENSE for details
 #
 

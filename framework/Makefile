@@ -1,6 +1,6 @@
-#*- makefile -*-
+# -*- makefile -*-
 #
-# Copyright (c) 2004, Dan Villiom Podlaski Christiansen
+# Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
 # See the file LICENSE for details
 #
 
@@ -26,10 +26,6 @@ uninstall:
 clean:
 	$(RM) $(OBJS) $(PRODUCT) $(TARGET) .depend
 
-.depend: $(SRCS) Makefile
-	$(RM) $@
-	$(CC) -M $(CPPFLAGS) $(SRCS) > $@
-
 $(TARGET): $(PRODUCT)
 	$(RM) $(TARGET)
 	$(INSTALL) -d $(TARGET)/Headers $(TARGET)/Resource
@@ -42,5 +38,9 @@ $(PRODUCT): $(OBJS)
 $(FPREFIX)/$(notdir $(TARGET)): $(TARGET)
 	$(RM) $(FPREFIX)/$(notdir $(TARGET))
 	$(CP) $(TARGET) $(FPREFIX)
+
+.depend: $(SRCS) Makefile
+	$(RM) $@
+	$(CC) -M $(CPPFLAGS) $(SRCS) > $@
 
 -include .depend

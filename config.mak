@@ -1,4 +1,8 @@
-# -*- Makefile -*-
+# -*- makefile -*-
+#
+# Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
+# See the file LICENSE for details
+#
 
 FPREFIX?=/Library/Frameworks
 KPREFIX?=/System/Library/Extensions
