@@ -4,12 +4,8 @@
 # See the file LICENSE for details
 #
 
-include config.mak
-
 SUBDIRS=framework kext util
 SUBTARGETS=all clean dist install
-
-SRCROOT=$(CURDIR)
 
 $(SUBTARGETS):
 	$(foreach i,$(SUBDIRS),$(MAKE) -C $i $@ &&) :
