@@ -1,6 +1,5 @@
 /*
- * OpenDarwin IOKit BSD Client
- * An abstract IOService with an entry in /dev
+ * OpenDarwin audio subsystem definitions
  *
  * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
  * All rights reserved.
@@ -27,6 +26,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/* ODBSDClient property keys */
 
 #define kODBSDClientMajorNumberKey "ODBSDClientMajorNumber"
 #define kODBSDClientMinorNumberKey "ODBSDClientMinorNumber"

@@ -1,7 +1,7 @@
 
 # -*- Makefile -*-
 
-PRODUCT=OpenAudioExtensions
+PRODUCT=ODAudioSystem
 OBJS=ds_init.o ODBSDClient.o ODAudioBSDClient.o
 
 MKDIR=mkdir -p

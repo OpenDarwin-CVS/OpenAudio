@@ -33,7 +33,7 @@
 extern kern_return_t _start(kmod_info_t *ki, void *data);
 extern kern_return_t _stop(kmod_info_t *ki, void *data);
  
-KMOD_EXPLICIT_DECL(org.opendarwin.OpenAudioExtensions, "0.1",
+KMOD_EXPLICIT_DECL(org.opendarwin.ODAudioSystem, "0.1",
                    _start, _stop)
 
 __private_extern__ kmod_start_func_t *_realmain = 0;

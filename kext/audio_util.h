@@ -1,4 +1,6 @@
 /*
+ * Utility definitions for the OpenDarwin audio subsystem
+ *
  * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
  * All rights reserved.
  * 
@@ -33,28 +35,22 @@
 
 #define UMASK 0666
 
-#if 0
+#ifndef NDEBUG
+#define MACH_ASSERT
 #define DEBUG(...) \
   IOLog(__VA_ARGS__)
-#else
-#define DEBUG(...) (void)0
-#endif
-
-#if 0
-#define DEBUG_FUNCTION()			\
-  DEBUG_WAIT("-> %s\n", __PRETTY_FUNCTION__);
-#elif 1
 #define DEBUG_FUNCTION()			\
   DEBUG("-> %s\n", __PRETTY_FUNCTION__);
-#else
-#define DEBUG_FUNCTION() (void)0
-#endif
-
 #define DEBUG_WAIT(...)				\
   do {						\
     IOLog(__VA_ARGS__);				\
     IOSleep(500);				\
   } while (0);
+#else
+#define DEBUG(...) (void)0
+#define DEBUG_FUNCTION() (void)0
+#define DEBUG_WAIT() (void)0
+#endif
 
 #define EXPAND4(...) __VA_ARGS__ __VA_ARGS__ __VA_ARGS__ __VA_ARGS__
 

@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>OpenAudioExtensions</string>
+	<string>ODAudioSystem</string>
 	<key>CFBundleGetInfoString</key>
-	<string>OpenAudioExtensions version 0.1, Copyright 2003 Sam O'Connor.</string>
+	<string>ODAudioSystem version 0.1, Copyright 2003 Sam O'Connor.</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.opendarwin.OpenAudioExtensions</string>
+	<string>org.opendarwin.ODAudioSystem</string>
 	<key>CFBundleName</key>
-	<string>OpenAudioExtensions</string>
+	<string>ODAudioSystem</string>
 	<key>CFBundlePackageType</key>
 	<string>KEXT</string>
 	<key>CFBundleShortVersionString</key>
-	<string>OpenAudioExtensions</string>
+	<string>ODAudioSystem</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
@@ -23,11 +23,11 @@
 		<key>ODAudioBSDClient</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>org.opendarwin.OpenAudioExtensions</string>
+			<string>org.opendarwin.ODAudioSystem</string>
 			<key>IOClass</key>
 			<string>ODAudioBSDClient</string>
 			<key>IOMatchCategory</key>
-			<string>OpenAudioExtensions</string>
+			<string>ODAudioSystem</string>
 			<key>IOProviderClass</key>
 			<string>IOAudioEngine</string>
 			<key>IOResourceMatch</key>
@@ -38,11 +38,11 @@
 		<key>ODBSDClient</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>org.opendarwin.OpenAudioExtensions</string>
+			<string>org.opendarwin.ODAudioSystem</string>
 			<key>IOClass</key>
 			<string>ODAudioBSDClient</string>
 			<key>IOMatchCategory</key>
-			<string>OpenAudioExtensions</string>
+			<string>ODAudioSystem</string>
 			<key>IOProviderClass</key>
 			<string>IOAudioEngine</string>
 			<key>IOResourceMatch</key>

@@ -29,6 +29,10 @@ unload: dist
 
 reload: unload load
 
+release:
+	sudo $(MAKE) clean dist \
+	ARCHFLAGS="-arch ppc -arch i386" CPPFLAGS="$(CPPFLAGS) -DNDEBUG"
+
 clean:
 	$(RM) $(OBJS) $(PRODUCT) $(PRODUCT).plist $(PRODUCT).kext .depend
 
