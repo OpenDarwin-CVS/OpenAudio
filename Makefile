@@ -7,20 +7,12 @@
 include config.mak
 
 SUBDIRS=framework kext util
+SUBTARGETS=all clean dist install
 
 SRCROOT=$(CURDIR)
 
-all:
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i all &&) :
-
-clean:
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i clean &&) :
-
-dist:
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i dist &&) :
-
-install:
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i install &&) :
+$(SUBTARGETS):
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i $@ &&) :
 
 release:
-	$(MAKE) clean dist RELEASE=yes
+	$(MAKE) RELEASE=yes clean dist
