@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"> <!--*- html -*-->
+<!doctype html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"> <!--*- html -*-->
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head>
     <!--
 	OpenAudio - openaudio
@@ -96,14 +96,14 @@
 	    <h3>Developers</h3>
 	    <ul>
 	      <li>
-		<a class="mail" href="javascript:send_email('opendarwin.org', 'danchr)">
+		<a class="mail" href="javascript:send_email('opendarwin.org', 'danchr')">
 		  Dan Christiansen
 		</a> - founder and core developer
 	      </li>
 	    </ul>
 	    <p class="footer">
 	      &copy; Dan Villiom Podlaski Christiansen, 
-	      <?php date(getlastmod('F d Y'))><br />
+	      <?php echo date("F d Y", getlastmod());?><br />
 		This page is valid 
 		<a title="HTML Validator" href="http://validator.w3.org/check/referer">
 		  XHTML 1.1</a>
