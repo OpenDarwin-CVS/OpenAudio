@@ -16,14 +16,17 @@ Apple Darwin and GNU/Darwin. Untested on i386.
 
 USAGE
 
-- to compile OpenAudio, type 'make'
-- to create the kernel extension, type 'make dist'
-- to load and unload the kext, type 'make load' and 'make unload'
+To compile OpenAudio and install a non-debug version:
+make release
+
+To load the kernel extension without rebooting:
+sudo make -C kext reload
 
 You should now have a /dev/dspN entry for every supported audio device
 in your computer. It most likely supports 44.1kHz native endian
 audio. I recommend dd or cat for playing, a small sample script is in
-'util/play'. Patches for esound will be available shortly.
+'util/play'. Incomplete patches for esound can be requested at the
+mailing list.
 
 LIMITATIONS
 
