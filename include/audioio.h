@@ -88,28 +88,18 @@ typedef struct audio_volume {
 /* VOLUME CONTROL */
 
 /* get available output interfaces */
-#ifdef UNIMPLEMENTED
 #define AUDIOGETIFACES _IOR('A', 21, audio_interface_t)
-#endif
 
 /* get volume */
-#ifdef UNIMPLEMENTED
 #define AUDIOGETVOL _IORW('A', 22, audio_volume_t)
-#endif
 
 /* set volume */
-#ifdef UNIMPLEMENTED
 #define AUDIOSETVOL _IOR('A', 22, audio_volume_t)
-#endif
 
 /* get muted */
-#ifdef UNIMPLEMENTED
 #define AUDIOGETMUTE _IOW('A', 23, audio_interface_t)
-#endif
 
 /* set muted */
-#ifdef UNIMPLEMENTED
 #define AUDIOSETMUTE _IOR('A', 23, audio_interface_t)
-#endif
 
 #endif /* !_AUDIO_IOCTL_H_ */

@@ -4,6 +4,10 @@ This is ODAudioSystem, the OpenDarwin interface to the IOAudioFamily,
 enabling you to play sound through your speakers. It was written by
 Dan Christiansen, see the file LICENSE for details.
 
+This driver is meant to be as simple as possible. Rather than
+providing full support for all features supported by IOAudioFamily, it
+reveals the smallest useful subset of features.
+
 REQUIREMENTS
 
 OpenDarwin 6.6.1 (or later), does not work on Mac OS X. Untested on
