@@ -4,8 +4,7 @@ include config.mak
 SUBDIRS=kext
 SUBTARGETS=all dist clean
 
-export SRCROOT=$(CURDIR)
-export DSTROOT=$(SRCROOT)
+SRCROOT=$(CURDIR)
 
 all: $(SUBDIRS)(all)
 dist: $(SUBDIRS)(dist)
