@@ -26,7 +26,8 @@ uninstall:
 	-kextunload $(KPREFIX)/$(notdir $(TARGET))
 	$(RM) $(KPREFIX)/$(notdir $(TARGET))
 
-reload: uninstall $(KPREFIX)/$(notdir $(TARGET))
+reload: $(KPREFIX)/$(notdir $(TARGET))
+	-kextunload $(KPREFIX)/$(notdir $(TARGET))
 	kextload $(KPREFIX)/$(notdir $(TARGET))
 
 $(PRODUCT): $(OBJS)
