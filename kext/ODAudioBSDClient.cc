@@ -151,7 +151,7 @@ ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
   ODAudioBSDClient *client = new ODAudioBSDClient;  
 
   if (!client->init()) {
-    DEBUG("Failed to initialise client!\n");
+    IOLog("Failed to initialise client!\n");
     client->release();
     return NULL;
   }
@@ -160,7 +160,7 @@ ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
     major = cdevsw_add(major, &chardev);
 
   if (major < 0) {
-    DEBUG("Failed to allocate major device number!\n");
+    IOLog("Failed to allocate major device number!\n");
     client->release();
     return NULL;
   }
@@ -175,7 +175,7 @@ ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
 		    UMASK, "dsp%x", client->minor);
 
   if (!client->devnode) {
-    DEBUG("Failed to allocate minor device number!\n");
+    IOLog("Failed to allocate minor device number!\n");
     client->release();
     return NULL;
   }
@@ -208,7 +208,7 @@ bool ODAudioBSDClient::open()
   DEBUG_FUNCTION();
 
   if (this->is_open || !engine->outputStreams) {
-    DEBUG("%s is in use!\n", engine->getName());
+    IOLog("%s is in use!\n", engine->getName());
     return false;
   }
   
@@ -221,7 +221,7 @@ bool ODAudioBSDClient::open()
 
   this->is_open = true;
 
-  DEBUG("Opening %s!\n", engine->getName());
+  IOLog("Opening %s!\n", engine->getName());
 
   return true;
 }
@@ -229,7 +229,7 @@ bool ODAudioBSDClient::open()
 void ODAudioBSDClient::close()
 {
   DEBUG_FUNCTION();
-  DEBUG("Closing %s!\n", engine->getName());
+  IOLog("Closing %s!\n", engine->getName());
 
   this->is_open = false;
   engine->performFlush();
@@ -260,7 +260,8 @@ int ODAudioBSDClient::write(struct uio *uio)
 	(engine->getStatus()->fCurrentLoopCount * engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
 
       if (frame_diff <= 0) {
-	      nwrites, (unsigned)-frame_diff);
+	DEBUG("RACE CONDITION DETECTED: %u %u off\n",
+	      nwrites, -frame_diff);
 	delay = 0;
       } else if (frame_diff < LATENCY_FRAMES) {
 	unsigned correction = 
@@ -269,7 +270,6 @@ int ODAudioBSDClient::write(struct uio *uio)
 	      nwrites, (unsigned)frame_diff, correction);
 	delay -= (delay > correction) ? correction : delay;
       }
-
 
       IOSleep(delay / 1000000);
       IODelay((delay / 1000) % 1000);
@@ -283,7 +283,7 @@ int ODAudioBSDClient::write(struct uio *uio)
   }
 
   if (engine->getState() != kIOAudioEngineRunning) {
-    DEBUG("%u: Restarting %s!\n", nwrites, engine->getName());
+    IOLog("%u: Restarting %s!\n", nwrites, engine->getName());
 
     engine->stopAudioEngine();
     engine->clearAllSampleBuffers();

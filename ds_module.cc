@@ -120,7 +120,7 @@ int ds_open(dev_t dev, int flags, int devtype, struct proc *pp)
 {
   DEBUG_FUNCTION();
 
-  return clients[minor(dev)]->open() ? 0 : EACCES;
+  return clients[minor(dev)]->open() ? 0 : EBUSY;
 }
 
 int ds_close(dev_t dev, int flags, int mode, struct proc *pp)
@@ -135,6 +135,8 @@ int ds_close(dev_t dev, int flags, int mode, struct proc *pp)
 int ds_write(dev_t dev, struct uio *uio, int ioflag)
 {
   DEBUG_FUNCTION();
+
+  if (uio->uio_resid < 256) return EINVAL;
 
   return clients[minor(dev)]->write(uio);
 }

@@ -33,8 +33,12 @@
 
 #define UMASK 0660
 
+#if 0
 #define DEBUG(...) \
   IOLog(__VA_ARGS__)
+#else
+#define DEBUG(...) (void)0
+#endif
 
 #if 0
 #define DEBUG_FUNCTION()			\
