@@ -27,7 +27,7 @@ $(EPREFIX)/%: $(SRCROOT)/%
 $(SRCROOT)/%: %
 	$(INSTALL) $< $(SRCROOT)
 
-.depend: $(BINS:%=%.c) Makefile
+.depend: $(BINS:%=%.c) Makefile $(SRCROOT)/config.mak
 	$(RM) $@
 	$(CC) -M $(CPPFLAGS) $(BINS:%=%.c) > $@
 

@@ -39,7 +39,7 @@ $(FPREFIX)/$(notdir $(TARGET)): $(TARGET)
 	$(RM) $(FPREFIX)/$(notdir $(TARGET))
 	$(CP) $(TARGET) $(FPREFIX)
 
-.depend: $(SRCS) Makefile
+.depend: $(SRCS) Makefile $(SRCROOT)/config.mak
 	$(RM) $@
 	$(CC) -M $(CPPFLAGS) $(SRCS) > $@
 

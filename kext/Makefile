@@ -45,7 +45,7 @@ $(KPREFIX)/$(notdir $(TARGET)): $(TARGET)
 	$(RM) $(KPREFIX)/$(notdir $(TARGET))
 	$(CP) $(TARGET) $(KPREFIX)
 
-.depend: $(SRCS) Makefile
+.depend: $(SRCS) Makefile $(SRCROOT)/config.mak
 	$(RM) $@
 	$(CC) -M $(CPPFLAGS) $(SRCS) > $@
 
