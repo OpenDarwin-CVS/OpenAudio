@@ -23,7 +23,4 @@ install:
 	$(foreach i,$(SUBDIRS),$(MAKE) -C $i install &&) :
 
 release:
-	sudo $(MAKE) clean dist RELEASE=yes
-
-
-reload: unload load
+	$(MAKE) clean dist RELEASE=yes
