@@ -4,9 +4,10 @@
     <!--
 	OpenAudio - openaudio
 	
-	Copyright 2003 Dan Christiansen
+	Copyright (c) 2003-2004 Dan Christiansen
 	
-	Released into the public domain.
+	Permission is hereby granted to use any portion of this page, for any
+	purpose whatsoever.
 	
 	$Id$
 
