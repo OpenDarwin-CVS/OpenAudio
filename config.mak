@@ -7,29 +7,29 @@ PRODUCT=OpenAudio
 KEXT=$(SRCROOT)/$(PRODUCT).kext
 FRAMEWORK=$(SRCROOT)/$(PRODUCT).framework
 
-MKDIR=mkdir -p
 STR2PLIST=util/str2plist
-CP=cp
 MV=mv
 RM=rm -rf
+CP=cp -r
 CC=gcc
 CXX=g++
 SYSCTL=/usr/sbin/sysctl
-INSTALL=install
+INSTALL=/usr/bin/install
 
 OSMAJOR=$(shell $(SYSCTL) -n kern.osrelease | cut -d. -f1)
 OSMINOR=$(shell $(SYSCTL) -n kern.osrelease | cut -d. -f2)
 
+ifeq ($(RELEASE), yes)
+ARCHFLAGS=-arch ppc -arch i386
+CPPFLAGS+=-DNDEBUG
+endif
+
+ifeq ($(KERNEL), yes)
 CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers \
 	-I/System/Library/Frameworks/Kernel.framework/Headers/bsd \
 	-I$(SRCROOT)/include \
 	-DKERNEL -DKERNEL_PRIVATE -Wall -W -Werror -Wno-unused-parameter \
 	-DDARWIN_MAJOR=$(OSMAJOR) -DDARWIN_MINOR=$(OSMINOR)
-
-ifndef RELEASE
-ARCHFLAGS=-arch ppc -arch i386
-CPPFLAGS+=-DNDEBUG
-endif
 
 KFLAGS=-no-cpp-precomp -static -fno-common -finline -fno-keep-inline-functions \
 	-force_cpusubtype_ALL -Os $(ARCHFLAGS) -nostdinc -g -fno-common \
@@ -41,3 +41,7 @@ CXXFLAGS=$(KFLAGS) -fapple-kext -fno-rtti -fno-exceptions -fcheck-new \
 CFLAGS=$(KFLAGS) -fno-builtin
 
 LDFLAGS=$(ARCHFLAGS) -static -nostdlib -r -lcc_kext -g -lkmodc++ -lkmod
+
+else
+
+endif

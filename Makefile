@@ -1,31 +1,29 @@
+#*- makefile -*-
+#
+# Copyright (c) 2004, Dan Villiom Podlaski Christiansen
+# See the file LICENSE for details
+#
 
 include config.mak
 
-SUBDIRS=kext
+SUBDIRS=framework kext
 
 SRCROOT=$(CURDIR)
 
 all:
-	@for i in $(SUBDIRS); do $(MAKE) -C $$i all; done
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i all;)
 
 clean:
-	@for i in $(SUBDIRS); do $(MAKE) -C $$i clean; done
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i clean;)
 
 dist:
-	@for i in $(SUBDIRS); do $(MAKE) -C $$i dist; done
-
-release:
-	sudo $(MAKE) clean dist RELEASE=
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i dist;)
 
 install:
-	$(INSTALL) $(KEXT) $(KPREFIX)
-	$(INSTALL) $(FRAMEWORK) $(FPREFIX)
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i install;)
 
+release:
+	sudo $(MAKE) clean dist RELEASE=yes
 
-load: dist
-	kextload -t -s $(KEXT)/Contents/Resources $(KEXT)
-
-unload: dist
-	kextunload $(KEXT)
 
 reload: unload load

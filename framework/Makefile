@@ -6,12 +6,11 @@
 
 SRCROOT=$(CURDIR)/..
 
-TARGET=$(KEXT)
-OBJS=module.o ODBSDClient.o ODAudioBSDClient.o
+TARGET=$(FRAMEWORK)
+OBJS=framework.o
 SRCS=$(shell for file in $(OBJS); do for ext in .cc .cpp .mm .c .m; do \
 		test -e $${file%.o}$$ext && echo $${file%%.o}$$ext; \
 	done; done)
-KERNEL=yes
 
 include ../config.mak
 
@@ -19,22 +18,23 @@ all: $(PRODUCT)
 
 dist: $(TARGET)
 
+install:
+	$(CP) $(TARGET) $(FPREFIX)
+
 clean:
 	$(RM) $(OBJS) $(PRODUCT) $(TARGET) .depend
-
-install: $(TARGET)
-	$(CP) $(TARGET) $(KPREFIX)
 
 .depend: $(SRCS) Makefile
 	$(RM) $@
 	$(CC) -M $(CPPFLAGS) $(SRCS) > $@
 
--include .depend
+$(TARGET): $(PRODUCT)
+	$(RM) $(TARGET)
+	$(INSTALL) -d $(TARGET)/Headers $(TARGET)/Resource
+	$(INSTALL) $(PRODUCT) $(TARGET)
+	$(INSTALL) $(wildcard ../include/*.h) $(TARGET)/Headers
 
 $(PRODUCT): $(OBJS)
-	$(CC) $(OBJS) $(LDFLAGS) -o $@
+	$(CC) -dynamiclib $(OBJS) $(LDFLAGS) -o $(PRODUCT)
 
-$(TARGET): $(PRODUCT)
-	$(RM) $@
-	$(INSTALL) -d $@/Contents/MacOS $@/Contents/Resources
-	$(INSTALL) Info.plist $(PRODUCT) $@/Contents
+-include .depend
