@@ -38,8 +38,8 @@ $(PRODUCT): $(OBJS)
 $(PRODUCT).kext/Contents/MacOS/$(PRODUCT): \
 		$(STR2PLIST) $(PRODUCT) $(PRODUCT).plist
 	$(MKDIR) $(PRODUCT).kext/Contents/MacOS
-	$(CP) $(PRODUCT) $(PRODUCT).kext/Contents/MacOS/$(PRODUCT)
-	$(CP) $(PRODUCT).plist $(PRODUCT).kext/Contents/Info.plist
+	$(MV) $(PRODUCT) $(PRODUCT).kext/Contents/MacOS/$(PRODUCT)
+	$(MV) $(PRODUCT).plist $(PRODUCT).kext/Contents/Info.plist
 	chown -R root:wheel $(PRODUCT).kext
 	chmod -R 644 $(PRODUCT).kext
 
