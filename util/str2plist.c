@@ -2,7 +2,7 @@
  * Small utility for converting OpenStep property lists to XML
  * Deprecated.
  *
- * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
+ * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@opendarwin.org>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without

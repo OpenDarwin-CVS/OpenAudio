@@ -1,6 +1,6 @@
 # -*- makefile -*-
 #
-# Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
+# Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@opendarwin.org>
 # See the file LICENSE for details
 #
 

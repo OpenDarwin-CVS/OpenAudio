@@ -1,7 +1,7 @@
 /*
  * IOCTL keys for the OpenDarwin Audio BSD Client
  *
- * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
+ * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@opendarwin.org>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
