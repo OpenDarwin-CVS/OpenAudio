@@ -67,6 +67,7 @@ class ODAudioBSDClient : public ODBSDClient
   bool is_open;
   bool blocking;
   int owner;
+  unsigned chunksize;
 
   /* IOAUDIOFAMILY-RELATED FIELDS */
 

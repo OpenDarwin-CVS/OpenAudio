@@ -161,7 +161,7 @@ bool ODAudioBSDClient::start(IOService *provider)
 
   this->owner = -1;
   this->is_open = false;
-  this->blocking = false;
+  this->blocking = true;
 
   if (!super::start(provider)) return false;
 
@@ -177,6 +177,9 @@ bool ODAudioBSDClient::start(IOService *provider)
   if (!this->outputstream) return false;
 
   nwrites = 0;
+
+  this->chunksize =
+    outputstream->getSampleBufferSize() / engine->numErasesPerBuffer;
 
   /* obtain audio controls */
   if (engine->defaultAudioControls && 
@@ -214,8 +217,11 @@ int ODAudioBSDClient::open(int flags, int devtype, struct proc *pp)
 
   if (this->is_open) return EBUSY;
 
-  this->blocking = flags & O_NONBLOCK != O_NONBLOCK;
+  this->blocking = (flags & O_NONBLOCK) != O_NONBLOCK;
   this->is_open = true;
+
+  IOLog("Opened %s %sblocking\n", engine->getName(),
+	this->blocking ? "" : "non");
 
   return 0;
 }
@@ -259,41 +265,54 @@ unsigned ODAudioBSDClient::getDelay(AbsoluteTime now)
   absolutetime_to_nanoseconds(next_call, &t1);
   absolutetime_to_nanoseconds(now, &t2);
 
-  if (t2 < t1) {
+  if (engine->getState() != kIOAudioEngineRunning || t2 >= t1) {
+    VERBOSE_DEBUG("NO DELAY\n");
+    return 0;
+  } else {
     unsigned delay = t1 - t2;
     int byte_diff = framesToBytes(this->getBufferedFrames());
-    const int min_diff = outputstream->getSampleBufferSize() / 2;
+    const int min_diff = chunksize;
 
-    if (byte_diff < 0) {
-      /* The end position has been overtaken by the current frame.
-       * This means we're behind and shouldn't wait at all */
-      DEBUG("RACE CONDITION DETECTED: %u %u off\n", nwrites, -byte_diff);
-      delay = 0;
-    } else if (byte_diff < min_diff) {
+    if (byte_diff < min_diff * 2) {
       /* The end position is in the same half of the buffer as the
        * current frame. This can cause race conditions, so we decrease
        * the delay to ensure the latency. */
-      unsigned correction = bytesToNanos(min_diff - byte_diff);
-      if (0 && delay > correction) {
+      unsigned correction = bytesToNanos(min_diff * 2 - byte_diff);
+      if (blocking && delay > correction) {
 	delay -= correction;
       } else {
 	/* the correction is so large that we shouldn't wait */
-	DEBUG("RACE CONDITION EMMINENT: %u %u off %u corrected\n",
+	DEBUG("RACE CONDITION EMMINENT: %u diff=%u %u corrected\n",
 	      nwrites, byte_diff, correction);
 	delay = 0;
       }
-    }
+    } else if (byte_diff < min_diff) {
+      /* The end position is in the same quarter as the current
+       * frame. This means we're behind and shouldn't wait. */
+      DEBUG("RACE CONDITION PREVENTED: %u diff=%u\n", nwrites, byte_diff);
+      delay = 0;
+    } else if (byte_diff < 0) {
+      /* The end position has been overtaken by the current frame.
+       * This also means we shouldn't wait at all. */
+      IOLog("RACE CONDITION DETECTED: %u diff=-%u\n", nwrites, -byte_diff);
+      delay = 0;
+    } 
 
     return delay;
-  } else {
-    VERBOSE_DEBUG("NO DELAY\n");
-    return 0;
   }
 }
 
 int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 {
   DEBUG_FUNCTION();
+
+  /* The audio engine is stopped. This means that a) there is nothing
+   * buffered so we should clear it and b) we should restart it when
+   * we copied the audio to it. */
+  if (engine->getState() != kIOAudioEngineRunning) {
+    IOLog("%u: Restarting %s!\n", nwrites, engine->getName());
+    this->reset();
+  }
 
   IOAudioEnginePosition endpos = engine->audioEngineStopPosition;
   AbsoluteTime now = getTime();
@@ -305,29 +324,25 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
   if (!this->blocking && delay)
     return EAGAIN;
 
-  /* The audio engine is stopped. This means that a) there is nothing
-   * buffered so we should clear it and b) we should restart it when
-   * we copied the audio to it. */
-  if (engine->getState() != kIOAudioEngineRunning) {
-    IOLog("%u: Restarting %s!\n", nwrites, engine->getName());
-    this->reset();
-  }
-
-  unsigned int offset = framesToBytes(endpos.fSampleFrame);  
   /* calculate offset */
-  unsigned written = 
-    min(min(buflen - offset, (int64_t)uio->uio_resid),
-	buflen / engine->numErasesPerBuffer);
-  int r = uiomove((caddr_t)buf + offset, written, uio);
+  unsigned offset = framesToBytes(endpos.fSampleFrame);  
+  unsigned written = min(chunksize, (unsigned)uio->uio_resid);
+  int r;
   int64_t correction = 0;
 
   /* pospone end of playback */
-  if (offset + written == buflen) {
-    endpos.fSampleFrame = 0;
+  if (buflen - offset < written) {
+    unsigned avail = buflen - offset;
+    r = uiomove((caddr_t)buf + offset, avail, uio);
+    r = uiomove((caddr_t)buf, written - avail, uio);
+    offset = written - avail;
     endpos.fLoopCount++;
   } else {
-    endpos.fSampleFrame = bytesToFrames(offset + written);
+    r = uiomove((caddr_t)buf + offset, written, uio);
+    offset += written;
   }
+
+  endpos.fSampleFrame = endpos.fSampleFrame = bytesToFrames(offset);
 
   engine->audioEngineStopPosition = endpos;
   engine->stopEngineAtPosition(&engine->audioEngineStopPosition);
@@ -438,7 +453,12 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 
   case AUDIOGETDELAY:
     DEBUG("AUDIOGETDELAY\n");
-    *((int64_t *)data) = (int64_t)this->getDelay(this->getTime());
+    *((unsigned *)data) = this->getDelay(this->getTime());
+    break;
+
+  case AUDIOCHUNKSIZE:
+    DEBUG("AUDIOGETDELAY\n");
+    *((unsigned *)data) = this->chunksize;
     break;
 
   case AUDIOGETOPORT:

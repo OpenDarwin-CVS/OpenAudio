@@ -62,7 +62,10 @@ typedef struct audio_volume {
 #define AUDIOLATENCY _IOR('A', 2, uint64_t)
 
 /* get latency in nanoseconds */
-#define AUDIOGETDELAY _IOR('A', 3, uint32_t)
+#define AUDIOGETDELAY _IOR('A', 3, unsigned)
+
+/* get size of maximum of read/write operations */
+#define AUDIOCHUNKSIZE _IOR('A', 4, unsigned)
 
 /* AUDIO FORMAT */
 
