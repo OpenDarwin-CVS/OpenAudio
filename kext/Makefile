@@ -22,7 +22,7 @@ dist: $(PRODUCT).kext/Contents/MacOS/$(PRODUCT)
 load: dist
 	kextload -t $(PRODUCT).kext
 
-unload:
+unload: dist
 	kextunload $(PRODUCT).kext
 
 clean:

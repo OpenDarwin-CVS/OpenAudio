@@ -175,9 +175,10 @@ bool ODAudioBSDClient::open()
     CAST(IOAudioStream, engine->outputStreams->getCount() > 0 ?
 	 engine->outputStreams->getObject(0) : NULL);
 
-  if (!outputstream) return false;
+  if (!this->outputstream) return false;
 
   this->is_open = true;
+  engine->getLoopCountAndTimeStamp(&loopcount, &this->timestamp);
   engine->startAudioEngine();
 
   return true;
@@ -197,11 +198,13 @@ int ODAudioBSDClient::write(struct uio *uio)
   DEBUG_FUNCTION();
 
   AbsoluteTime time, interval;
-  UInt32 loopcount;
   IOAudioEnginePosition endpos;
   uint64_t n;
   int bytes = MIN((long)outputstream->getSampleBufferSize(),
 		  (long)uio->uio_resid);
+
+  engine->performFlush();
+  engine->performErase();
 
   int r = uiomove((caddr_t)this->outputstream->getSampleBuffer(), bytes, uio);
 
@@ -210,15 +213,19 @@ int ODAudioBSDClient::write(struct uio *uio)
   nanoseconds_to_absolutetime(n * 1000, &interval);
 
   engine->getLoopCountAndTimeStamp(&loopcount, &time);
-  //ADD_ABSOLUTETIME(&time, &interval);
-  //engine->takeTimeStamp(true, &time);
+  SUB_ABSOLUTETIME(&time, &this->timestamp);
+  SUB_ABSOLUTETIME(&interval, &time);
+  engine->getLoopCountAndTimeStamp(&loopcount, &time);
 
   endpos.fSampleFrame = bytesToFrames(outputstream->getFormat(), bytes);
   endpos.fLoopCount = loopcount + 2;
 
+  DEBUG("bytes=%u samples=%u size=%u\n", bytes, (int)endpos.fSampleFrame,
+	(int)this->outputstream->getSampleBufferSize());
+
   if (!engine->getState() == kIOAudioEngineRunning) {
     DEBUG("%s: loopcount=%u n=%llu\n", __FUNCTION__,
-	  (int)loopcount, AbsoluteTime_to_scalar(&time));
+	  (int)loopcount, AbsoluteTime_to_scalar(&timestamp));
     engine->startAudioEngine();
   }
 

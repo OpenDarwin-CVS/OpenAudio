@@ -71,6 +71,9 @@ class ODAudioBSDClient : public OSObject
   IOAudioEngine *engine;
   IOAudioStream *outputstream;
 
+  AbsoluteTime timestamp;
+  UInt32 loopcount;
+
   /* BSD DEVICE-RELATED FIELDS */
 
   void *devnode;

@@ -107,7 +107,6 @@ kern_return_t ds_stop(kmod_info_t * ki, void * d)
   for (int n = 0; n < nclients; n++)
     if (clients[n]) clients[n]->release();
 
-  DEBUG_WAIT("deleting clients\n");
   IODelete(clients, ODAudioBSDClient *, nclients);
 
   ds_installed = 0;
