@@ -22,16 +22,14 @@ make release
 To load the kernel extension without rebooting:
 sudo make -C kext reload
 
-You should now have a /dev/dspN entry for every supported audio device
+You should now have a /dev/dsp entry for every supported audio device
 in your computer. It most likely supports 44.1kHz native endian
 audio. I recommend dd or cat for playing, a small sample script is in
-'util/play'. Incomplete patches for esound can be requested at the
-mailing list.
+'util/play'. EsounD was attempted ported, but sucked too much. MPlayer
+has been ported, and patches will be made available soon(tm).
 
 LIMITATIONS
 
-- no volume control
-- no line out
 - no more than 256 sound cards at once
 - only supports exclusive access to each device
 - does not work on Mac OS X
