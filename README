@@ -1,0 +1,36 @@
+ABOUT
+
+This is ODAudioSystem, the OpenDarwin interface to the IOAudioFamily,
+enabling you to play sound through your speakers. It was written by
+Dan Christiansen, see the file LICENSE for details.
+
+REQUIREMENTS
+
+OpenDarwin 6.6.1 (or later), does not work on Mac OS X. Untested on
+Apple Darwin and GNU/Darwin. Untested on i386.
+
+USAGE
+
+- to compile ODAudioSystem, type 'make'
+- to create the kernel extension, type 'make dist'
+- to load and unload the kext, type 'make load' and 'make unload'
+
+You should now have a /dev/dspN entry for every supported audio device
+in your computer. It most likely supports 44.1kHz native endian
+audio. I recommend dd or cat for playing, a small sample script is in
+'util/play'.
+
+LIMITATIONS
+
+- no volume control
+- no line out
+- no more than 256 sound cards at once
+- only supports exclusive access to each device
+- does not work on Mac OS X
+- no recording support
+
+DISCLAIMER
+
+This is open source software; no guarantee or support is made what so
+ever. This driver *may* cause your computer to self-destruct, although
+I find that somewhat unlikely.
