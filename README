@@ -25,8 +25,15 @@ sudo make -C kext reload
 You should now have a /dev/dsp entry for every supported audio device
 in your computer. It most likely supports 44.1kHz native endian
 audio. I recommend dd or cat for playing, a small sample script is in
-'util/play'. EsounD was attempted ported, but sucked too much. MPlayer
-has been ported, and patches will be made available soon(tm).
+'util/play'.
+
+SUPPORTED APPLICATIONS
+
+EsounD was attempted ported, but it sucked too much.
+
+MPlayer has been ported to OpenDarwin, and patches are available in
+the 'other' subdirectory: Apply the patch and create a link
+ao_darwin.c in MPlayer's libao2 subdirectory.
 
 LIMITATIONS
 

@@ -1,0 +1,120 @@
+? libao2/ao_darwin.c
+Index: configure
+===================================================================
+RCS file: /cvsroot/mplayer/main/configure,v
+retrieving revision 1.881
+diff -u -r1.881 configure
+--- configure	27 Jun 2004 17:54:30 -0000	1.881
++++ configure	29 Jun 2004 16:52:38 -0000
+@@ -261,6 +261,7 @@
+   --disable-sgiaudio     disable SGI sound support [autodetect]
+   --disable-sunaudio     disable Sun sound support [autodetect]
+   --disable-win32waveout disable Windows waveout sound support [autodetect]
++  --disable-openaudio    disable OpenAudio output for Darwin [autodetect]
+   --disable-select       disable using select() on audio device [enable]
+ 
+ Miscellaneous options:
+@@ -1163,6 +1164,7 @@
+ _sdl=auto
+ _directx=auto
+ _win32waveout=auto
++_openaudio=auto
+ _nas=auto
+ _png=auto
+ _jpg=auto
+@@ -1307,6 +1309,8 @@
+   --disable-directx)    _directx=no     ;;
+   --enable-win32waveout)  _win32waveout=yes ;;
+   --disable-win32waveout) _win32waveout=no  ;;
++  --enable-openaudio)   _openaudio=yes  ;;
++  --disable-openaudio)  _openaudio=no   ;;
+   --enable-nas)		_nas=yes	;;
+   --disable-nas)	_nas=no		;;
+   --enable-png)		_png=yes	;;
+@@ -3899,6 +3903,27 @@
+ fi
+ echores "$_win32waveout"
+ 
++echocheck "OpenAudio"
++if test "$_openaudio" = auto ; then
++  cat > $TMPC << EOF
++#include <OpenAudio/audioio.h>
++#include <OpenAudio/defines.h>
++int main(void) { return 0; }
++EOF
++  _openaudio=no
++  cc_check -framework OpenAudio && _openaudio=yes
++fi
++if test "$_openaudio" = yes ; then
++  _def_openaudio='#define HAVE_OPENAUDIO 1'
++  _ld_openaudio="-framework OpenAudio"
++  _aosrc="$_aosrc ao_darwin.c"
++  _aomodules="darwin $_aomodules"
++else
++  _def_openaudio='#undef HAVE_OPENAUDIO'
++  _noaomodules="darwin $_noaomodules"
++fi
++echores "$_openaudio"
++
+ echocheck "Directx"
+ if test "$_directx" = auto ; then
+   cat > $TMPC << EOF
+@@ -6173,6 +6198,7 @@
+ JACK_LIB = $_ld_jack
+ JACK_INC = $_inc_jack
+ SGIAUDIO_LIB = $_ld_sgiaudio
++OPENAUDIO_LIB = $_ld_openaudio
+ 
+ # input/demuxer/codecs
+ TERMCAP_LIB = $_ld_termcap
+@@ -6580,6 +6606,7 @@
+ $_def_sunaudio
+ $_def_sgiaudio
+ $_def_win32waveout
++$_def_openaudio
+ $_def_nas
+ 
+ /* Enable fast OSD/SUB renderer (looks ugly, but uses less CPU power) */
+Index: Makefile
+===================================================================
+RCS file: /cvsroot/mplayer/main/Makefile,v
+retrieving revision 1.294
+diff -u -r1.294 Makefile
+--- Makefile	27 Jun 2004 17:54:30 -0000	1.294
++++ Makefile	29 Jun 2004 16:52:38 -0000
+@@ -31,7 +31,7 @@
+ OBJS_MPLAYER = $(SRCS_MPLAYER:.c=.o)
+ 
+ VO_LIBS = $(AA_LIB) $(X_LIB) $(SDL_LIB) $(GGI_LIB) $(MP1E_LIB) $(MLIB_LIB) $(SVGA_LIB) $(DIRECTFB_LIB) $(CACA_LIB)
+-AO_LIBS = $(ARTS_LIB) $(ESD_LIB) $(JACK_LIB) $(NAS_LIB) $(SGIAUDIO_LIB)
++AO_LIBS = $(ARTS_LIB) $(ESD_LIB) $(JACK_LIB) $(NAS_LIB) $(SGIAUDIO_LIB) $(OPENAUDIO_LIB)
+ CODEC_LIBS = $(AV_LIB) $(FAME_LIB) $(MAD_LIB) $(VORBIS_LIB) $(THEORA_LIB) $(FAAD_LIB) $(LIBLZO_LIB) $(DECORE_LIB) $(XVID_LIB) $(PNG_LIB) $(Z_LIB) $(JPEG_LIB) $(ALSA_LIB) $(XMMS_LIB) $(MATROSKA_LIB) 
+ COMMON_LIBS = libmpcodecs/libmpcodecs.a mp3lib/libMP3.a liba52/liba52.a libmpeg2/libmpeg2.a $(W32_LIB) $(DS_LIB) libaf/libaf.a libmpdemux/libmpdemux.a input/libinput.a postproc/libswscale.a osdep/libosdep.a $(DVDREAD_LIB) $(CODEC_LIBS) $(FREETYPE_LIB) $(TERMCAP_LIB) $(CDPARANOIA_LIB) $(MPLAYER_NETWORK_LIB) $(WIN32_LIB) $(GIF_LIB) $(MACOSX_FRAMEWORKS) $(SMBSUPPORT_LIB) $(FRIBIDI_LIB) $(FONTCONFIG_LIB) $(ENCA_LIB)
+ 
+Index: libao2/audio_out.c
+===================================================================
+RCS file: /cvsroot/mplayer/main/libao2/audio_out.c,v
+retrieving revision 1.38
+diff -u -r1.38 audio_out.c
+--- libao2/audio_out.c	25 Jun 2004 18:11:13 -0000	1.38
++++ libao2/audio_out.c	29 Jun 2004 16:52:38 -0000
+@@ -53,6 +53,9 @@
+ #ifdef MACOSX
+ extern ao_functions_t audio_out_macosx;
+ #endif
++#ifdef HAVE_OPENAUDIO
++extern ao_functions_t audio_out_darwin;
++#endif
+ #ifdef HAVE_DXR2
+ extern ao_functions_t audio_out_dxr2;
+ #endif
+@@ -90,6 +93,9 @@
+ #ifdef USE_SUN_AUDIO
+         &audio_out_sun,
+ #endif
++#ifdef HAVE_OPENAUDIO
++	&audio_out_darwin,
++#endif
+ // wrappers:
+ #ifdef USE_ARTS
+         &audio_out_arts,
