@@ -28,4 +28,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "../include/audioio.h"
+#include "../include/defines.h"
+
 static inline void emptyfunc() { }
