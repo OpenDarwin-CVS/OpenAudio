@@ -1,0 +1,109 @@
+/*
+ * Simple IRC Client - simpleirc
+ * 
+ * Copyright 2003 Dan Christiansen
+ *
+ * Released into the public domain.
+ *
+ * $Id$
+ */
+
+body {
+  font-family: "Times New Roman", Times, serif;
+  text-align: center;
+  color: black;
+  background: white;
+}
+
+h1 {
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: center;
+}
+
+h2,h3,h4,h5,h6 {
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: justify;
+}
+
+p {
+  margin-right: 1.5em;
+  margin-left: 1.5em;
+  text-align: justify;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  text-align: justify;
+  margin-right: 1.5em;
+  margin-left: 1.5em;
+}
+
+code:before { 
+  content: "\"";
+}
+
+code:after { 
+  content: "\"";
+}
+
+p.footer {
+  /* light grey colour */
+  color: rgb(150, 150, 150);
+  background: inherit;
+  /* size as footer, etc. */
+  margin-top: 1.5em;
+  margin-right: 1.5em;
+  margin-left: 1.5em;
+  text-align: center;
+  font-size: x-small
+}
+
+p.footer a:link {
+  color: rgb(120, 120, 120);
+  background: inherit;
+}
+
+p.footer a:visited {
+  color: rgb(100, 100, 100);
+  background: inherit;
+}
+
+p.footer a:active {
+  color: rgb(200, 200, 200);
+  background: inherit;
+}
+
+p.footer a:hover {
+  color: rgb(50, 50, 50);
+  background: inherit;
+}
+
+a.mail {
+  font-style: italic;
+}
+
+#main-block {
+  text-align: left;
+  width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+table.code-table {
+  border: dashed;
+  border-width: 1px;
+  border-spacing: 0px;
+}
+
+table.code-table td {
+  padding: 5px;
+}
+
+table.code-table thead {
+  color: inherit;
+  background-color: #EFEFEF;
+}
