@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Dan Villiom Podlaski Christiansen
+ * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -82,7 +82,7 @@ const char *ODAudioBSDClient::statusString()
 
 int ODAudioBSDClient::bytesToFrames(const IOAudioStreamFormat *f, int bytes)
 {
-  return bytes * f->fBitDepth / 8 * f->fNumChannels;
+  return bytes / f->fBitDepth * 8 / f->fNumChannels;
 }
 
 int ODAudioBSDClient::calculateDelayMicros(const IOAudioStreamFormat *f,
@@ -111,42 +111,48 @@ ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
 {
   DEBUG_FUNCTION();
 
-  ODAudioBSDClient *driver = new ODAudioBSDClient;
-
   if (!engine)
     return NULL;
-  
-  if (!driver->init()) {
-    driver->release();
+
+  ODAudioBSDClient *client = new ODAudioBSDClient;  
+
+  if (!client->init()) {
+    DEBUG("Failed to initialise client!\n");
+    client->release();
     return NULL;
   }
 
   if (!ninitialised++)
     major = cdevsw_add(major, &chardev);
-  
+
   if (major < 0) {
-    driver->release();
+    DEBUG("Failed to allocate major device number!\n");
+    client->release();
     return NULL;
   }
 
-  driver->engine = engine;
-  driver->minor = minor;
-  driver->is_open = false;
+  client->engine = engine;
+  client->minor = minor;
+  client->is_open = false;
 
-  driver->devnode =
-    devfs_make_node(makedev(major, driver->minor),
+  client->devnode =
+    devfs_make_node(makedev(major, client->minor),
 		    DEVFS_CHAR, UID_ROOT, GID_OPERATOR, 
-		    UMASK, "dsp%x", driver->minor);
+		    UMASK, "dsp%x", client->minor);
 
-  if (!driver->devnode) {
-    driver->release();
+  if (!client->devnode) {
+    DEBUG("Failed to allocate minor device number!\n");
+    client->release();
     return NULL;
   }
  
-  if (driver->minor == 0)
-    devfs_link(driver->devnode, "dsp");
+  if (client->minor == 0)
+    devfs_link(client->devnode, "dsp");
 
-  return driver;
+  DEBUG("ODAudioBSDClient successfully initialised (%u/%u)\n",
+	major, this->minor);
+
+  return client;
 }
 
 void ODAudioBSDClient::free()
@@ -156,8 +162,10 @@ void ODAudioBSDClient::free()
   if (this->devnode)
     devfs_remove(this->devnode);
 
-  if (!ninitialised-- && major != -1)
+  if (!--ninitialised && major != -1) {
+    DEBUG("Deallocating major device #%u.\n", major);
     cdevsw_remove(major, &chardev);
+  }
 
   super::free();
 }
@@ -197,6 +205,12 @@ int ODAudioBSDClient::write(struct uio *uio)
 {
   DEBUG_FUNCTION();
 
+  if (engine->getState() != kIOAudioEngineRunning) {
+    DEBUG("Restarting IOAudioEngine\n");
+    engine->getLoopCountAndTimeStamp(&loopcount, &this->timestamp);
+    engine->startAudioEngine();
+  }
+
   AbsoluteTime time, interval;
   IOAudioEnginePosition endpos;
   uint64_t n;
@@ -204,7 +218,7 @@ int ODAudioBSDClient::write(struct uio *uio)
 		  (long)uio->uio_resid);
 
   engine->performFlush();
-  engine->performErase();
+  //engine->performErase();
 
   int r = uiomove((caddr_t)this->outputstream->getSampleBuffer(), bytes, uio);
 
@@ -223,12 +237,6 @@ int ODAudioBSDClient::write(struct uio *uio)
   DEBUG("bytes=%u samples=%u size=%u\n", bytes, (int)endpos.fSampleFrame,
 	(int)this->outputstream->getSampleBufferSize());
 
-  if (!engine->getState() == kIOAudioEngineRunning) {
-    DEBUG("%s: loopcount=%u n=%llu\n", __FUNCTION__,
-	  (int)loopcount, AbsoluteTime_to_scalar(&timestamp));
-    engine->startAudioEngine();
-  }
-
   engine->stopEngineAtPosition(&endpos);
 
   IOSleep(n / 1000);
@@ -236,7 +244,7 @@ int ODAudioBSDClient::write(struct uio *uio)
   return r;
 }
 
-        
+
 #if 0
     IOReturn ior = engine->mixOutputSamples((char *)buf,
 					    outputstream->getMixBuffer(),

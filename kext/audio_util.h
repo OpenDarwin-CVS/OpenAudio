@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Dan Villiom Podlaski Christiansen
+ * Copyright (c) 2004 Dan Villiom Podlaski Christiansen <danchr@daimi.au.dk>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
