@@ -32,6 +32,3 @@ $(SRCROOT)/%: %
 	$(CC) -M $(CPPFLAGS) $(BINS:%=%.c) > $@
 
 -include .depend
-
-%: %.o
-	$(CC) $(LDFLAGS) $< -o $@
