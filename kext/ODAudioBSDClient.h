@@ -50,15 +50,15 @@ class ODAudioBSDClient : public ODBSDClient
   
   const char *statusString();
 
-  int64_t bytesToNanos(int64_t bytes);
-  int64_t bytesToFrames(int64_t bytes);
-  int64_t nanosToBytes(int64_t nanos);
-  int64_t framesToBytes(int64_t frames);
+  int bytesToNanos(int bytes);
+  int bytesToFrames(int bytes);
+  int nanosToBytes(int nanos);
+  int framesToBytes(int frames);
 
   AbsoluteTime getTime();
-  unsigned getDelay(AbsoluteTime now);
-  int64_t getLatency();
-  int64_t getBufferedFrames();
+  int getDelay(AbsoluteTime now);
+  int getLatency();
+  int getBufferedFrames();
 
  protected:
 
@@ -67,7 +67,7 @@ class ODAudioBSDClient : public ODBSDClient
   bool is_open;
   bool blocking;
   int owner;
-  unsigned chunksize;
+  int chunksize;
 
   /* IOAUDIOFAMILY-RELATED FIELDS */
 

@@ -29,6 +29,7 @@ uninstall:
 
 reload: $(KPREFIX)/$(notdir $(TARGET))
 	kextunload $(KPREFIX)/$(notdir $(TARGET))
+	$(RM) /System/Library/{Extensions.mkext,Extensions.kextcache}
 	kextload $(KPREFIX)/$(notdir $(TARGET))
 
 $(PRODUCT): $(OBJS)

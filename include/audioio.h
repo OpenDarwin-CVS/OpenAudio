@@ -59,13 +59,13 @@ typedef struct audio_volume {
 
 /* return the amount of nanoseconds it will take for a sample written
    now to be played */
-#define AUDIOLATENCY _IOR('A', 2, uint64_t)
+#define AUDIOLATENCY _IOR('A', 2, int)
 
 /* get latency in nanoseconds */
-#define AUDIOGETDELAY _IOR('A', 3, unsigned)
+#define AUDIOGETDELAY _IOR('A', 3, int)
 
 /* get size of maximum of read/write operations */
-#define AUDIOCHUNKSIZE _IOR('A', 4, unsigned)
+#define AUDIOCHUNKSIZE _IOR('A', 4, int)
 
 /* AUDIO FORMAT */
 
@@ -95,10 +95,10 @@ typedef struct audio_volume {
 
 /* get output port
    one of IOAudioTypes::kIOAudioSelectorControlSelectionValue* */
-#define AUDIOGETOPORT _IOR('A', 22, uint32_t)
+#define AUDIOGETOPORT _IOR('A', 22, int)
 
 /* select output port
    one of IOAudioTypes::kIOAudioSelectorControlSelectionValue* */
-#define AUDIOSETOPORT _IOWR('A', 22, uint32_t)
+#define AUDIOSETOPORT _IOWR('A', 22, int)
 
 #endif /* !_AUDIO_IOCTL_H_ */

@@ -60,8 +60,8 @@ static bool check_channel_id(IOAudioControl *c, int id)
 {
   DEBUG_FUNCTION();
   bool b = id != kIOAudioControlChannelNumberInactive &&
-    (signed)c->getChannelID() != kIOAudioControlChannelNumberInactive &&
-    (id == kIOAudioControlChannelIDAll || (unsigned)id == c->getChannelID());
+    (int)c->getChannelID() != kIOAudioControlChannelNumberInactive &&
+    (id == kIOAudioControlChannelIDAll || id == (int)c->getChannelID());
 
   DEBUG("c-id()=%u %s id=%u\n", (int)c->getChannelID(), b ? "==" : "!=", id);
 
@@ -86,7 +86,7 @@ const char *ODAudioBSDClient::statusString()
   }
 }
 
-int64_t ODAudioBSDClient::bytesToFrames(int64_t bytes)
+int ODAudioBSDClient::bytesToFrames(int bytes)
 {
   DEBUG_FUNCTION();
 
@@ -94,7 +94,7 @@ int64_t ODAudioBSDClient::bytesToFrames(int64_t bytes)
   return bytes / f->fBitDepth * 8 / f->fNumChannels;
 }
 
-int64_t ODAudioBSDClient::framesToBytes(int64_t frames)
+int ODAudioBSDClient::framesToBytes(int frames)
 {
   DEBUG_FUNCTION();
 
@@ -102,7 +102,7 @@ int64_t ODAudioBSDClient::framesToBytes(int64_t frames)
   return frames * f->fBitDepth / 8 * f->fNumChannels;
 }
 
-int64_t ODAudioBSDClient::bytesToNanos(int64_t bytes)
+int ODAudioBSDClient::bytesToNanos(int bytes)
 {
   DEBUG_FUNCTION();
 
@@ -112,7 +112,7 @@ int64_t ODAudioBSDClient::bytesToNanos(int64_t bytes)
     * 1000000000LL / rate->whole;
 }
 
-int64_t ODAudioBSDClient::nanosToBytes(int64_t nanos)
+int ODAudioBSDClient::nanosToBytes(int nanos)
 {
   DEBUG_FUNCTION();
 
@@ -191,7 +191,7 @@ bool ODAudioBSDClient::start(IOService *provider)
 
     for (unsigned n = 0; n < engine->defaultAudioControls->getCount(); n++) {
       IOAudioControl *c = CAST(IOAudioControl, i->getNextObject());
-      uint32_t t = c->getType(), s = c->getSubType(), u = c->getUsage();
+      unsigned t = c->getType(), s = c->getSubType(), u = c->getUsage();
 
       IOLog("%s:%u type=%.4s subtype=%.4s usage=%.4s\n", c->getName(),
 	    n, (char *)&t, (char *)&s, (char *)&u);
@@ -236,7 +236,7 @@ int ODAudioBSDClient::close(int flags, int mode, struct proc *pp)
   return 0;
 }
 
-int64_t ODAudioBSDClient::getBufferedFrames()
+int ODAudioBSDClient::getBufferedFrames()
 {
   DEBUG_FUNCTION();
 
@@ -248,7 +248,7 @@ int64_t ODAudioBSDClient::getBufferedFrames()
      engine->numSampleFramesPerBuffer + engine->getCurrentSampleFrame());
 }
 
-int64_t ODAudioBSDClient::getLatency()
+int ODAudioBSDClient::getLatency()
 {
   DEBUG_FUNCTION();
 
@@ -256,7 +256,7 @@ int64_t ODAudioBSDClient::getLatency()
     bytesToNanos(framesToBytes(this->getBufferedFrames()));
 }
 
-unsigned ODAudioBSDClient::getDelay(AbsoluteTime now)
+int ODAudioBSDClient::getDelay(AbsoluteTime now)
 {
   DEBUG_FUNCTION();
 
@@ -316,9 +316,9 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 
   IOAudioEnginePosition endpos = engine->audioEngineStopPosition;
   AbsoluteTime now = getTime();
-  unsigned int buflen = outputstream->getSampleBufferSize();
+  unsigned buflen = outputstream->getSampleBufferSize();
   void *buf = outputstream->getSampleBuffer();
-  uint64_t delay = this->getDelay(now);
+  unsigned delay = this->getDelay(now);
   nwrites++;
 
   if (!this->blocking && delay)
@@ -326,7 +326,7 @@ int ODAudioBSDClient::write(struct uio *uio, int ioflag)
 
   /* calculate offset */
   unsigned offset = framesToBytes(endpos.fSampleFrame);  
-  unsigned written = min(chunksize, (unsigned)uio->uio_resid);
+  unsigned written = min(chunksize, uio->uio_resid);
   int r;
   int64_t correction = 0;
 
@@ -448,17 +448,17 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 
   case AUDIOLATENCY:
     DEBUG("AUDIOLATENCY\n");
-    *((int64_t *)data) = this->getLatency();
+    *((int *)data) = this->getLatency();
     break;
 
   case AUDIOGETDELAY:
     DEBUG("AUDIOGETDELAY\n");
-    *((unsigned *)data) = this->getDelay(this->getTime());
+    *((int *)data) = this->getDelay(this->getTime());
     break;
 
   case AUDIOCHUNKSIZE:
     DEBUG("AUDIOGETDELAY\n");
-    *((unsigned *)data) = this->chunksize;
+    *((int *)data) = this->chunksize;
     break;
 
   case AUDIOGETOPORT:
@@ -474,18 +474,18 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 	  c->getSubType() == kIOAudioSelectorControlSubTypeOutput &&
 	  c->getUsage() == kIOAudioControlUsageOutput) {
 	if (cmd == AUDIOGETOPORT) {
-	  *((int32_t *)data) = c->getIntValue();
+	  *((int *)data) = c->getIntValue();
 	  r = 0;
 	} else if (cmd == AUDIOSETOPORT) {
 	  IOAudioSelectorControl *s =
 	    CAST(IOAudioSelectorControl, c);
-	  int32_t v = *((int32_t *)data);
+	  int v = *((int *)data);
       
 	  if (!s->valueExists(v)) { r = EINVAL; break; }
 
 	  s->setValue(v);
-	  *((int32_t *)data) = s->getIntValue();
-	  if (*((int32_t *)data) == v) {
+	  *((int *)data) = s->getIntValue();
+	  if (*((int *)data) == v) {
 	    r = 0;
 	  } else {
 	    r = EAGAIN;
@@ -501,7 +501,7 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
   case AUDIOSETVOL: {
     audio_volume_t *volume = (audio_volume_t *)data;
     unsigned nfound = 0;
-    uint32_t result = 0;
+    unsigned result = 0;
     OSIterator *i =
       OSCollectionIterator::withCollection(engine->defaultAudioControls);
 
@@ -518,24 +518,23 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 	IOAudioLevelControl *l = CAST(IOAudioLevelControl, c);
 
 	DEBUG("%s:%u/%u\tid=%u\treq=%u\n",
-	      l->getName(), nfound, n, (unsigned)l->getChannelID(), volume->id);
+	      l->getName(), nfound, n, (int)l->getChannelID(), volume->id);
 
 	if (cmd == AUDIOSETVOL) {
-	  uint32_t v = ((uint32_t)volume->value * l->getMaxValue()) / 
-	    (uint32_t)AUDIO_VOL_MAX + l->getMinValue();
-	  uint32_t ovalue = 
-	    (uint64_t)AUDIO_VOL_MAX * (l->getIntValue() - l->getMinValue())
+	  int v = volume->value * l->getMaxValue() / 
+	    AUDIO_VOL_MAX + l->getMinValue();
+	  int ovalue = 
+	    AUDIO_VOL_MAX * (l->getIntValue() - l->getMinValue())
 	    / l->getMaxValue();
 
-	  if ((int32_t)v == l->getIntValue())
+	  if (v == l->getIntValue())
 	    v = volume->value > ovalue ? v + 1 : 
 	      volume->value < ovalue ? v - 1 : v;
 	    
 	  l->setValue(v);
 	  DEBUG("value=%u corrected=%u\n", volume->value, v);
 	} else {
-	  result += 
-	    (uint64_t)AUDIO_VOL_MAX * (l->getIntValue() - l->getMinValue())
+	  result += AUDIO_VOL_MAX * (l->getIntValue() - l->getMinValue())
 	    / l->getMaxValue();
 	  DEBUG("value=%u result=%u\n", (int)l->getIntValue(), result);
 	}
@@ -545,9 +544,9 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
 	  check_channel_id(c, volume->id)) {
 	r = 0;
 
-	if (cmd == AUDIOGETOPORT)
+	if (cmd == AUDIOSETVOL)
 	  volume->muted = c->getIntValue();
-	else if (cmd == AUDIOSETOPORT)
+	else if (cmd == AUDIOGETVOL)
 	  if (!c->setValue(volume->muted)) r = EINVAL;
 
 	DEBUG("Setting muted to %u\n", volume->muted);
@@ -558,7 +557,7 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
     if (!nfound) {
       r = EINVAL;
     } else {
-      volume->value = (uint32_t)result / nfound;
+      volume->value = result / nfound;
       r = 0;
     }
     
