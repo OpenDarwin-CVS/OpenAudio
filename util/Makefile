@@ -4,10 +4,21 @@
 # See the file LICENSE for details
 #
 
-all: bswap str2plist
+SRCROOT=$(CURDIR)/..
+BINS=str2plist bswap selout
 
-str2plist: str2plist.c
-	$(CC) -framework CoreFoundation $? -o $@
+include ../config.mak
 
-bswap: bswap.c
-	$(CC) $? -o $@
+all: $(BINS)
+
+dist:
+
+clean:
+	$(RM) $(BINS) $(BINS:=.o)
+
+install:
+	$(INSTALL) -d
+	$(INSTALL) $(BINS) $(EPREFIX)
+
+%: %.o
+	$(CC) $(LDFLAGS) $< -o $@

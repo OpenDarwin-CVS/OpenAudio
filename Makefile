@@ -6,21 +6,21 @@
 
 include config.mak
 
-SUBDIRS=framework kext
+SUBDIRS=framework kext util
 
 SRCROOT=$(CURDIR)
 
 all:
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i all;)
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i all &&) :
 
 clean:
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i clean;)
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i clean &&) :
 
 dist:
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i dist;)
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i dist &&) :
 
 install:
-	$(foreach i,$(SUBDIRS),$(MAKE) -C $i install;)
+	$(foreach i,$(SUBDIRS),$(MAKE) -C $i install &&) :
 
 release:
 	sudo $(MAKE) clean dist RELEASE=yes
