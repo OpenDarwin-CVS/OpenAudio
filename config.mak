@@ -1,8 +1,5 @@
 # -*- Makefile -*-
 
-AUDIO_ENGINE_NAME:=$(shell ioreg | egrep 'Audio.*Engine' | \
-			   tr -d \| | tr -s \  | cut -d \  -f 3 | tail -n 1)
-
 PRODUCT=DarwinSound
 OBJS=ds_module.o ds_init.o
 
@@ -23,8 +20,7 @@ ARCHFLAGS=-arch ppc #-arch i386
 CPPFLAGS=-I/System/Library/Frameworks/Kernel.framework/Headers \
 	-I/System/Library/Frameworks/Kernel.framework/Headers/bsd \
 	-DKERNEL -DKERNEL_PRIVATE -Wall -W -Wno-unused-parameter \
-	-DDARWIN_MAJOR=$(OSMAJOR) -DDARWIN_MINOR=$(OSMINOR) \
-	-DAUDIO_ENGINE_NAME=\"$(AUDIO_ENGINE_NAME)\"
+	-DDARWIN_MAJOR=$(OSMAJOR) -DDARWIN_MINOR=$(OSMINOR)
 
 KFLAGS=-no-cpp-precomp -static -fno-common -finline -fno-keep-inline-functions \
 	-force_cpusubtype_ALL -Os $(ARCHFLAGS) -nostdinc -g -fno-common \

@@ -27,6 +27,11 @@
 
 #include "ds_module.h"
 
+/* HACK: workaround a typo in a kernel header */
+#if DARWIN_MAJOR < 7
+#define devfs_link devfs_make_link
+#endif
+
 extern "C" {
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -39,10 +44,6 @@ extern "C" {
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <miscfs/devfs/devfs.h>
-
-#if DARWIN_MAJOR < 7
-int	devfs_make_link __P((void * handle, char *fmt, ...));
-#endif
 }
 
 #include <libkern/c++/OSDictionary.h>
@@ -103,6 +104,7 @@ extern "C" kern_return_t ds_start(kmod_info_t * ki, void * d)
 {
   if( ds_installed ) {
     /* already registered, so don't register again */
+    printf("%s: already loaded!\n", __FUNCTION__);
     return KERN_FAILURE;
   }
 
@@ -114,15 +116,16 @@ extern "C" kern_return_t ds_start(kmod_info_t * ki, void * d)
   if (!i) {
     /* no audio engines available, don't start */
     dict->release();
+    printf("%s: no audio engines preset!\n", __FUNCTION__);
     return KERN_FAILURE;
   } else {
     /* create the character device */
     int ret = cdevsw_add(DS_MAJOR, &ds_cdevsw);
 
     if(ret < 0) {
-      printf("%s: failed to allocate a major number!\n", __FUNCTION__);
       dict->release();
       i->release();
+      printf("%s: failed to allocate a major number!\n", __FUNCTION__);
       return KERN_FAILURE;
     }
 
