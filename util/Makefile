@@ -5,7 +5,7 @@
 #
 
 SRCROOT=$(CURDIR)/..
-BINS=str2plist bswap selout setvol
+BINS=str2plist bswap selout setvol mute
 
 include $(SRCROOT)/config.mak
 

@@ -510,29 +510,43 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
     if (!i) { r = ENOTTY; break; }
 
     for (unsigned n = 0; n < engine->defaultAudioControls->getCount(); n++) {
-      IOAudioLevelControl *c = CAST(IOAudioLevelControl, i->getNextObject());
+      IOAudioControl *c = CAST(IOAudioControl, i->getNextObject());
 
       if (c && c->getType() == kIOAudioControlTypeLevel &&
 	  c->getSubType() == kIOAudioLevelControlSubTypeVolume &&
 	  c->getUsage() == kIOAudioControlUsageOutput && 
 	  check_channel_id(c, volume->id)) {
 	nfound++;
+	IOAudioLevelControl *l = CAST(IOAudioLevelControl, c);
 
 	DEBUG("%s:%u/%u\tid=%u\treq=%u\n",
-	      c->getName(), nfound, n, (unsigned)c->getChannelID(), volume->id);
+	      l->getName(), nfound, n, (unsigned)l->getChannelID(), volume->id);
 
 	/* FIXME: handle various ranges */
 	if (cmd == AUDIOSETVOL) {
-	  uint64_t v = ((uint64_t)volume->value * c->getMaxValue()) / 
-	    (uint64_t)AUDIO_VOL_MAX + c->getMinValue();
-	  c->setValue(v);
+	  uint64_t v = ((uint64_t)volume->value * l->getMaxValue()) / 
+	    (uint64_t)AUDIO_VOL_MAX + l->getMinValue();
+	  l->setValue(v);
 	  DEBUG("value=%u corrected=%llu\n", volume->value, v);
 	} else {
 	  result += 
-	    (uint64_t)AUDIO_VOL_MAX * (c->getIntValue() - c->getMinValue())
-	    / c->getMaxValue();
-	  DEBUG("value=%u result=%llu\n", (int)c->getIntValue(), result);
+	    (uint64_t)AUDIO_VOL_MAX * (l->getIntValue() - l->getMinValue())
+	    / l->getMaxValue();
+	  DEBUG("value=%u result=%llu\n", (int)l->getIntValue(), result);
 	}
+      } else if (c && c->getType() == kIOAudioControlTypeToggle &&
+	  c->getSubType() == kIOAudioToggleControlSubTypeMute &&
+	  c->getUsage() == kIOAudioControlUsageOutput && 
+	  check_channel_id(c, volume->id)) {
+	r = 0;
+
+	if (cmd == AUDIOGETOPORT)
+	  volume->muted = c->getIntValue();
+	else if (cmd == AUDIOSETOPORT)
+	  if (!c->setValue(volume->muted)) r = EINVAL;
+
+	DEBUG("Setting muted to %u\n", volume->muted);
+
       }
     }
 
