@@ -28,7 +28,6 @@
   <body>
     <div id="main-block">
       <h1>OpenAudio</h1>
-      <h5>The audio system for OpenDarwin</h5>
       <h3>Description</h3>
       <p>
 	OpenAudio is the OpenDarwin interface to IOAudioFamily.
