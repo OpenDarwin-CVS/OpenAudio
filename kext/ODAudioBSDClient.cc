@@ -127,7 +127,6 @@ AbsoluteTime ODAudioBSDClient::getTime()
   DEBUG_FUNCTION();
 
   AbsoluteTime r;
-  engine->getLoopCountAndTimeStamp(&loopcount, &r);
   clock_get_uptime(&r);
   return r;
 }
@@ -142,7 +141,6 @@ void ODAudioBSDClient::reset()
   /* reset it */
   engine->clearAllSampleBuffers();
   engine->resetStatusBuffer();
-  getTime();
 
   /* there is nothing buffered */
   engine->audioEngineStopPosition.fSampleFrame = 0;
@@ -181,6 +179,9 @@ bool ODAudioBSDClient::start(IOService *provider)
   this->chunksize =
     outputstream->getSampleBufferSize() / engine->numErasesPerBuffer;
 
+  IOLog("chunksize=%u bufsize=%u\n", 
+	chunksize, (unsigned)outputstream->getSampleBufferSize());
+
   /* obtain audio controls */
   if (engine->defaultAudioControls && 
       engine->defaultAudioControls->getCount() > 0) {
@@ -215,13 +216,14 @@ int ODAudioBSDClient::open(int flags, int devtype, struct proc *pp)
   if (pp->p_ucred->cr_uid && this->getOwner() != pp->p_ucred->cr_uid)
     return EACCES;
 
-  if (this->is_open) return EBUSY;
+  if (this->is_open && (flags & FWRITE)) return EBUSY;
 
-  this->blocking = (flags & O_NONBLOCK) != O_NONBLOCK;
+  this->blocking = !(flags & FNONBLOCK);
   this->is_open = true;
 
-  IOLog("Opened %s %sblocking\n", engine->getName(),
-	this->blocking ? "" : "non");
+  IOLog("Opened %s %sblocking%s\n", engine->getName(),
+	this->blocking ? "" : "non",
+	flags & FWRITE ? " with write-access" : "");
 
   return 0;
 }
@@ -261,35 +263,35 @@ int ODAudioBSDClient::getDelay(AbsoluteTime now)
   DEBUG_FUNCTION();
 
   uint64_t t1, t2;
-    
+
   absolutetime_to_nanoseconds(next_call, &t1);
   absolutetime_to_nanoseconds(now, &t2);
 
   if (engine->getState() != kIOAudioEngineRunning || t2 >= t1) {
-    VERBOSE_DEBUG("NO DELAY\n");
+    DEBUG("NO DELAY\n");
     return 0;
   } else {
     unsigned delay = t1 - t2;
     int byte_diff = framesToBytes(this->getBufferedFrames());
-    const int min_diff = chunksize;
+    const int min_diff = outputstream->getSampleBufferSize() / 2;
 
-    if (byte_diff < min_diff * 2) {
+    if (byte_diff < min_diff) {
       /* The end position is in the same half of the buffer as the
        * current frame. This can cause race conditions, so we decrease
        * the delay to ensure the latency. */
-      unsigned correction = bytesToNanos(min_diff * 2 - byte_diff);
+      unsigned correction = bytesToNanos(min_diff - byte_diff);
+      DEBUG("%u: delay=%u correction=%u\n",
+	    nwrites, delay, correction);
       if (blocking && delay > correction) {
 	delay -= correction;
       } else {
 	/* the correction is so large that we shouldn't wait */
-	DEBUG("RACE CONDITION EMMINENT: %u diff=%u %u corrected\n",
-	      nwrites, byte_diff, correction);
 	delay = 0;
       }
-    } else if (byte_diff < min_diff) {
+    } else if (byte_diff < chunksize) {
       /* The end position is in the same quarter as the current
        * frame. This means we're behind and shouldn't wait. */
-      DEBUG("RACE CONDITION PREVENTED: %u diff=%u\n", nwrites, byte_diff);
+      IOLog("RACE CONDITION PREVENTED: %u diff=%u\n", nwrites, byte_diff);
       delay = 0;
     } else if (byte_diff < 0) {
       /* The end position has been overtaken by the current frame.
@@ -433,7 +435,7 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
   switch (cmd) {
   case AUDIOGETOFMT: {
     const IOAudioStreamFormat *f = outputstream->getFormat();
-    DEBUG("AUDIOGETOFMT\n");
+    VERBOSE_DEBUG("AUDIOGETOFMT\n");
     if (f)
       bcopy(f, data, sizeof(IOAudioStreamFormat));
     else
@@ -442,22 +444,22 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
   }
 
   case AUDIOSETOFMT:
-    DEBUG("AUDIOSETOFMT\n");
+    VERBOSE_DEBUG("AUDIOSETOFMT\n");
     r = outputstream->setFormat((IOAudioStreamFormat *)data) ? EINVAL : 0;
     break;
 
   case AUDIOLATENCY:
-    DEBUG("AUDIOLATENCY\n");
+    VERBOSE_DEBUG("AUDIOLATENCY\n");
     *((int *)data) = this->getLatency();
     break;
 
   case AUDIOGETDELAY:
-    DEBUG("AUDIOGETDELAY\n");
+    VERBOSE_DEBUG("AUDIOGETDELAY\n");
     *((int *)data) = this->getDelay(this->getTime());
     break;
 
   case AUDIOCHUNKSIZE:
-    DEBUG("AUDIOGETDELAY\n");
+    VERBOSE_DEBUG("AUDIOGETDELAY\n");
     *((int *)data) = this->chunksize;
     break;
 
@@ -565,17 +567,17 @@ int ODAudioBSDClient::ioctl(u_long cmd, caddr_t data, int fflag, struct proc *p)
   }
 
   case FIONBIO:
-    DEBUG("FIONBIO\n");
+    VERBOSE_DEBUG("FIONBIO\n");
     this->blocking = *(int *)data;
     break;
 
   case FIOSETOWN:
-    DEBUG("FIOSETOWN\n");
+    VERBOSE_DEBUG("FIOSETOWN\n");
     owner = *(int *)data;
     break;
 
   case FIOGETOWN: {
-    DEBUG("FIOGETOWN\n");
+    VERBOSE_DEBUG("FIOGETOWN\n");
     *(int *)data = this->getOwner();
     break;
   }

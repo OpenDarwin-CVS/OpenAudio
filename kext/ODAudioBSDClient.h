@@ -78,7 +78,6 @@ class ODAudioBSDClient : public ODBSDClient
     IOAudioControl *builtin, *external, *spdif, *boot;
   } outputcontrols;
 
-  UInt32 loopcount;
   AbsoluteTime next_call;
 
   /* engine control functions */

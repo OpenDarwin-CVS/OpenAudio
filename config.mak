@@ -48,5 +48,8 @@ endif
 ifeq ($(RELEASE), yes)
 ARCHFLAGS=$(foreach i, ppc i386, \
 	$(shell test -d /usr/libexec/gcc/darwin/$i && echo "-arch $i"))
+endif
+
+ifneq ($(DEBUG), yes)
 CPPFLAGS+=-DNDEBUG
 endif

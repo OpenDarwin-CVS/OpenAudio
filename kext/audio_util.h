@@ -45,8 +45,12 @@
 #define MACH_ASSERT
 #define DEBUG(...) \
   IOLog(__VA_ARGS__)
+#if 0
 #define DEBUG_FUNCTION()			\
   DEBUG("-> %s\n", __PRETTY_FUNCTION__);
+#else
+#define DEBUG_FUNCTION() (void)0
+#endif
 #define DEBUG_WAIT(...)				\
   do {						\
     IOLog(__VA_ARGS__);				\
