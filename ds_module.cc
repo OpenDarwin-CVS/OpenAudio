@@ -78,6 +78,7 @@ kern_return_t ds_start(kmod_info_t * ki, void * d)
     printf("%s: no audio engines preset!\n", __FUNCTION__);
     return KERN_FAILURE;
   } else {
+    /* count IOAudioEngines */
     while (i->getNextObject()) nclients++;
     i->reset();
 
@@ -93,7 +94,7 @@ kern_return_t ds_start(kmod_info_t * ki, void * d)
       }
     }
   }
-       
+
   if (dict) dict->release();
   if (i) i->release();
   

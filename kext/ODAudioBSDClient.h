@@ -26,6 +26,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _ODAUDIOBSDCLIENT_H_
+#define _ODAUDIOBSDCLIENT_H_
+
 #include "ds_util.h"
 
 extern "C" {
@@ -44,11 +47,10 @@ extern "C" {
 
 #include <libkern/c++/OSObject.h>
 #include <IOKit/audio/IOAudioTypes.h>
+#include <IOKit/audio/IOAudioEngine.h>
+#include <IOKit/audio/IOAudioStream.h>
 
 #define ODAudioBSDClient org_opendarwin_ODAudioBSDClient
-
-class IOAudioEngine;
-class IOAudioStream;
 
 class ODAudioBSDClient : public OSObject
 {
@@ -57,8 +59,15 @@ class ODAudioBSDClient : public OSObject
  private:
   static int ninitialised;
   virtual const char *statusString();
-  virtual int calculateDelayMicros(const IOAudioStreamFormat *f, int bytes);
-  virtual int bytesToFrames(const IOAudioStreamFormat *f, int bytes);
+  virtual uint64_t bytesToNanos(const IOAudioStreamFormat *f, uint64_t bytes);
+  virtual uint64_t bytesToFrames(const IOAudioStreamFormat *f, uint64_t bytes);
+  virtual uint64_t nanosToBytes(const IOAudioStreamFormat *f, uint64_t nanos);
+  virtual uint64_t framesToBytes(const IOAudioStreamFormat *f, uint64_t frames);
+
+  virtual uint64_t bytesToNanos(uint64_t bytes);
+  virtual uint64_t bytesToFrames(uint64_t bytes);
+  virtual uint64_t nanosToBytes(uint64_t nanos);
+  virtual uint64_t framesToBytes(uint64_t frames);
 
  protected:
 
@@ -70,9 +79,6 @@ class ODAudioBSDClient : public OSObject
 
   IOAudioEngine *engine;
   IOAudioStream *outputstream;
-
-  AbsoluteTime timestamp;
-  UInt32 loopcount;
 
   /* BSD DEVICE-RELATED FIELDS */
 
@@ -96,3 +102,5 @@ class ODAudioBSDClient : public OSObject
   
   virtual int write(struct uio *uio);
 };
+
+#endif

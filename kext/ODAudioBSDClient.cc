@@ -80,30 +80,52 @@ const char *ODAudioBSDClient::statusString()
   }
 }
 
-int ODAudioBSDClient::bytesToFrames(const IOAudioStreamFormat *f, int bytes)
+uint64_t ODAudioBSDClient::bytesToNanos(uint64_t bytes)
+{
+  return bytesToNanos(this->outputstream->getFormat(), bytes);
+}
+
+uint64_t ODAudioBSDClient::bytesToFrames(uint64_t bytes)
+{
+  return bytesToFrames(this->outputstream->getFormat(), bytes);
+}
+
+uint64_t ODAudioBSDClient::framesToBytes(uint64_t frames)
+{
+  return framesToBytes(this->outputstream->getFormat(), frames);
+}
+
+uint64_t ODAudioBSDClient::nanosToBytes(uint64_t nanos)
+{
+  return nanosToBytes(this->outputstream->getFormat(), nanos);
+}
+
+uint64_t ODAudioBSDClient::bytesToFrames(const IOAudioStreamFormat *f,
+					 uint64_t bytes)
 {
   return bytes / f->fBitDepth * 8 / f->fNumChannels;
 }
 
-int ODAudioBSDClient::calculateDelayMicros(const IOAudioStreamFormat *f,
-					   int bytes)
+uint64_t ODAudioBSDClient::framesToBytes(const IOAudioStreamFormat *f,
+					 uint64_t frames)
+{
+  return frames * f->fBitDepth / 8 * f->fNumChannels;
+}
+
+uint64_t ODAudioBSDClient::bytesToNanos(const IOAudioStreamFormat *f,
+					 uint64_t bytes)
 {
   const IOAudioSampleRate *rate = this->engine->getSampleRate();
-  uint64_t delay;
+  return bytes * max(rate->fraction,1) / (f->fBitDepth / 8) / f->fNumChannels
+    * 1000000000LL / rate->whole;
+}
 
-  delay = bytes;
-  delay *= max(rate->fraction,1);
-  delay /= f->fBitDepth / 8;
-  delay /= f->fNumChannels;
-  delay *= 1000000;
-  delay /= rate->whole;
-
-#if 0
-  DEBUG("rate=%u/%u bytes=%u delay=%llu\n",
-	(int)rate->whole, (int)rate->fraction, bytes, delay);
-#endif
-
-  return (int)delay;
+uint64_t ODAudioBSDClient::nanosToBytes(const IOAudioStreamFormat *f,
+					 uint64_t nanos)
+{
+  const IOAudioSampleRate *rate = this->engine->getSampleRate();
+  return nanos * rate->whole * f->fNumChannels * (f->fBitDepth / 8)
+    / max(rate->fraction, 1) / 1000000000LL;
 }
 
 ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
@@ -150,7 +172,7 @@ ODAudioBSDClient *ODAudioBSDClient::withAudioEngine(IOAudioEngine *engine,
     devfs_link(client->devnode, "dsp");
 
   DEBUG("ODAudioBSDClient successfully initialised (%u/%u)\n",
-	major, this->minor);
+	major, client->minor);
 
   return client;
 }
@@ -162,10 +184,8 @@ void ODAudioBSDClient::free()
   if (this->devnode)
     devfs_remove(this->devnode);
 
-  if (!--ninitialised && major != -1) {
-    DEBUG("Deallocating major device #%u.\n", major);
+  if (!--ninitialised && major != -1)
     cdevsw_remove(major, &chardev);
-  }
 
   super::free();
 }
@@ -175,7 +195,11 @@ bool ODAudioBSDClient::open()
 {
   DEBUG_FUNCTION();
 
+  /* FIXME: This an ugly hack because ODAudioBSDClient::close() isn't called */
+  this->is_open = false;
+
   if (this->is_open || !engine->outputStreams) {
+    DEBUG("%s is in use!\n", engine->getName());
     return false;
   }
   
@@ -186,8 +210,8 @@ bool ODAudioBSDClient::open()
   if (!this->outputstream) return false;
 
   this->is_open = true;
-  engine->getLoopCountAndTimeStamp(&loopcount, &this->timestamp);
-  engine->startAudioEngine();
+
+  DEBUG("Opening %s!\n", engine->getName());
 
   return true;
 }
@@ -195,9 +219,9 @@ bool ODAudioBSDClient::open()
 void ODAudioBSDClient::close()
 {
   DEBUG_FUNCTION();
+  DEBUG("Closing %s!\n", engine->getName());
 
-  engine->stopAudioEngine();
-
+  engine->performFlush();
   this->is_open = false;
 }
 
@@ -206,56 +230,32 @@ int ODAudioBSDClient::write(struct uio *uio)
   DEBUG_FUNCTION();
 
   if (engine->getState() != kIOAudioEngineRunning) {
-    DEBUG("Restarting IOAudioEngine\n");
-    engine->getLoopCountAndTimeStamp(&loopcount, &this->timestamp);
+    IOLog("Restarting %s!\n", engine->getName());
     engine->startAudioEngine();
   }
 
-  AbsoluteTime time, interval;
-  IOAudioEnginePosition endpos;
-  uint64_t n;
-  int bytes = MIN((long)outputstream->getSampleBufferSize(),
-		  (long)uio->uio_resid);
+  unsigned int buflen = outputstream->getSampleBufferSize();
+  unsigned int offset =
+    framesToBytes(engine->audioEngineStopPosition.fSampleFrame);  
+  /* calculate offset */
+  unsigned written = MIN(MIN(buflen - offset, (uint64_t)uio->uio_resid),
+			 buflen / 4);
 
-  engine->performFlush();
-  //engine->performErase();
+  int r = uiomove((caddr_t)this->outputstream->getSampleBuffer() + offset,
+		  written, uio);
 
-  int r = uiomove((caddr_t)this->outputstream->getSampleBuffer(), bytes, uio);
+  /* pospone end of playback */
+  if (offset + written == buflen) {
+    engine->audioEngineStopPosition.fSampleFrame = 0;
+    engine->audioEngineStopPosition.fLoopCount++;
+  } else {
+    engine->audioEngineStopPosition.fSampleFrame =
+      bytesToFrames(offset + written);
+  }
 
-  n = calculateDelayMicros(outputstream->getFormat(), bytes);
+  IOLog("%u bytes written\n", written);
 
-  nanoseconds_to_absolutetime(n * 1000, &interval);
-
-  engine->getLoopCountAndTimeStamp(&loopcount, &time);
-  SUB_ABSOLUTETIME(&time, &this->timestamp);
-  SUB_ABSOLUTETIME(&interval, &time);
-  engine->getLoopCountAndTimeStamp(&loopcount, &time);
-
-  endpos.fSampleFrame = bytesToFrames(outputstream->getFormat(), bytes);
-  endpos.fLoopCount = loopcount + 2;
-
-  DEBUG("bytes=%u samples=%u size=%u\n", bytes, (int)endpos.fSampleFrame,
-	(int)this->outputstream->getSampleBufferSize());
-
-  engine->stopEngineAtPosition(&endpos);
-
-  IOSleep(n / 1000);
+  IOSleep(bytesToNanos(written) / 1000000);
 
   return r;
 }
-
-
-#if 0
-    IOReturn ior = engine->mixOutputSamples((char *)buf,
-					    outputstream->getMixBuffer(),
-					    0, 1,
-					    &outputstream->format,
-					    outputstream);
-
-    if (ior != kIOReturnSuccess) {
-      debug("%s: MIX FAILED\n", __FUNCTION__);
-    } else {
-      debug("%u written to a %s %s: %u\n",
-	    bytes, statusString(), engine->getName(), r);
-    }
-#endif

@@ -4,7 +4,7 @@ include config.mak
 
 .SUFFIXES: .plist .strings
 
-.PHONY: .depend clean dist all load unload
+.PHONY: .depend clean dist all load unload reload
 
 .c.o:
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
@@ -24,6 +24,8 @@ load: dist
 
 unload: dist
 	kextunload $(PRODUCT).kext
+
+reload: unload load
 
 clean:
 	$(RM) $(OBJS) $(PRODUCT) $(PRODUCT).plist $(PRODUCT).kext
